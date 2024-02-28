@@ -1,0 +1,17 @@
+.image-grid {
+  display: grid;
+  position: relative;
+  grid-template-columns: repeat(12, 1fr);
+}
+
+.image-stack__item--top {
+  grid-column: 2 / -1;
+  grid-row: 1;
+}
+
+.image-stack__item--bottom {
+  grid-row: 1;
+  grid-column: 3 / span 8;
+  padding-top: 20%;
+  z-index: 1;
+}
