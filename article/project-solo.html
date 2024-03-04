@@ -416,6 +416,135 @@
       <p>
         And there you go! We've found one of the hidden players.
       </p>
+
+      <p>
+        With the approach looked at above for the gameplay, the player can leverage trilateration to pinpoint the likely location of Hidden Player 1. In trilateration, the point where three circles intersect is a strong candidate for the actual location because it satisfies the distance constraints from each guess. If you find the intersection point of the circles drawn from (3,3), (7,2), and (5,7), this point likely corresponds to the hiding place of Hidden Player 1.
+      </p>
+
+      <p>
+        The fact that, in the game, each guess provides information about the distances from the chosen point to all four hidden players is a crucial aspect that supports the soundness of the strategy. But you can also streamline it a bit as follows:
+      </p>
+
+      <ol>
+        <li>
+          Test the point at (0,0).
+        </li>
+        <li>
+          Test the point at (9,0).
+        </li>
+        <li>
+          Draw arcs from (0,0) with the four different distances.
+        </li>
+        <li>
+          Draw arcs from (9,0) with the four different distances.
+        </li>
+        <li>
+          Use four more turns to locate all the hidden players.
+        </li>
+      </ol>
+
+      <p>
+        Let's break down that strategy.
+      </p>
+
+      <ul>
+        <li>
+          In steps 1 and 2, you're choosing points at the extremes of the grid. This approach is viable because testing these points provides information about potential player locations in the horizontal direction.
+        </li>
+        <li>
+          In steps 3 and 4, you create areas where the hidden players must be located by drawing arcs from (0,0) and (9,0) with the distances obtained from these extreme points. The intersection points of these arcs become strong candidates for the hidden players' positions.
+        </li>
+        <li>
+          Finally, in step 5, you use four additional turns to refine and confirm the locations of the hidden players, which can involve a trilateration-like strategy.
+        </li>
+      </ul>
+
+      <p>
+        With this streamlined approach, you can generally find all the hidden players in six moves, which means the approach is an effective optimization, leveraging the information gained from extreme points to narrow the search area quickly. Let's consider an example of this approach.
+      </p>
+
+      <pre>
+        TURN NUMBER 1 , WHAT IS YOUR GUESS?
+        ? 0,0
+        YOUR DISTANCE FROM PLAYER 1 IS 3 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 2 IS 8 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 3 IS 5.5 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 4 IS 6.2 UNIT(S).
+      </pre>
+
+      <p>
+        There, we test the point at (0,0).
+      </p>
+
+      <pre>
+        TURN NUMBER 2 , WHAT IS YOUR GUESS?
+        ? 9,0
+        YOUR DISTANCE FROM PLAYER 1 IS 6.5 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 2 IS 2.5 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 3 IS 8.8 UNIT(S).
+        YOUR DISTANCE FROM PLAYER 4 IS 9.1 UNIT(S).
+      </pre>
+
+      <p>
+        There, we test the point at (9,0). Then, based on the obtained distances, you would have to draw the arcs from (0,0) and (9,0). Let's consider how we would do that.
+      </p>
+
+      <ul>
+        <li>
+          Drawing Arcs from (0,0):
+        </li>
+        <ul>
+          <li>
+            Arc with radius 3 centered at (0,0)
+          </li>
+          <li>
+            Arc with radius 8 centered at (0,0)
+          </li>
+          <li>
+            Arc with radius 5.5 centered at (0,0)
+          </li>
+          <li>
+            Arc with radius 6.2 centered at (0,0)
+          </li>
+        </ul>
+      </ul>
+
+      <ul>
+        <li>
+          Drawing Arcs from (9,0):
+        </li>
+        <ul>
+          <li>
+            Arc with radius 6.5 centered at (9,0)
+          </li>
+          <li>
+            Arc with radius 2.5 centered at (9,0)
+          </li>
+          <li>
+            Arc with radius 8.8 centered at (9,0)
+          </li>
+          <li>
+            Arc with radius 9.1 centered at (9,0)
+          </li>
+        </ul>
+      </ul>
+
+      <p>
+        Now, let's identify the intersection points of these arcs, which will likely be the hidden player locations.
+      </p>
+
+      <ul>
+        <li>
+          The intersection of arcs from (0,0) suggests a potential location for Player 1.
+        </li>
+        <li>
+          The intersection of arcs from (9,0) suggests a potential location for Player 2.
+        </li>
+      </ul>
+
+      <p>
+        With these potential locations identified, you can now use four additional turns to refine and confirm the positions of Players 1 and 2 and discover the locations of Players 3 and 4. I won't play all that out here, but I hope you can see how the overall strategy works.
+      </p>
     </article>
   </main>
 </body>
