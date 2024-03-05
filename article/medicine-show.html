@@ -75,6 +75,66 @@
       <p>
         A few things stand out in those clippings of the coverage. The article from <em>The Denver Post</em> on 3 April 1963 has Albrecht, along with Irvin Hoffman, saying, "Problem-solving through the use of computers gives students a deeper insight into math and encourages them toward self-education in the subject." The clipping from <em>Rocky Mountain News</em> on 29 August 1963 has Albrecht and Hoffman confirming that the goal of the project was to "teach mathematics, not computers."
       </p>
+
+      <p>
+        The "Medicine Show" article provides a FORTRAN listing that students were working on, and I think it's worth considering that to an extent. Consider the following:
+      </p>
+
+      <p>
+         Consider these statements:
+      </p>
+
+      <pre><code>
+        10    FORMAT (I5, 4E16.8)
+        11    FORMAT (4E16.8)
+
+        500   READ 10, JWHICH, A, B, C
+              GO TO (15, 25, 35, 45, 55, 65, 75, 85, 95, 105), JWHICH
+      </code></pre>
+
+      <p>
+        Lines 10 and 11 define input/output formats. Lines 500 and 501 read input values (JWHICH, A, B, C) using the <code>READ</code> statement with format 10 and then branch to a specific label based on the value of JWHICH.
+      </p>
+
+      <p class="note">
+        Line numbers were typically used as labels for statements rather than being strictly sequential. The numbers were used to identify the sequence of execution and control flow rather than necessarily indicating their order in the program.
+      </p>
+
+      <p>
+        When taken as a whole, this program calculates the discriminant to determine the nature of the roots. Based on the discriminant, if the discriminant is non-zero, the program calculates two distinct real roots. If the discriminant is zero, the program calculates the repeated real root (with real and imaginary parts). The program then prints the coefficients and the roots of the equation. Just for context, in case math isn't your thing, the discriminant acts like a tool for the program to understand how many and what kind of solutions the quadratic equation has based on whether it "touches" an imaginary number line in one, two, or zero places.
+      </p>
+
+      <p>
+        Based on his success, as indicated by the media coverage, Albrecht convinced Control Data to allow him to take the medicine show across the country. Albrecht eventually moved to Minnesota, where Control Data had its headquarters. It was there that someone showed Albrecht BASIC. The context for this is that Albrecht taught programming at the University of Minnesota Laboratory High School, which, by 1965, featured a computing connection to the Dartmouth Time-Sharing System (DTSS), where the young mathematics teachers praised BASIC. Albrecht became a convert. In his words from the interview:
+      </p>
+
+      <blockquote>
+        I said that's it! No more Fortran, so I started traveling all over the country crusading for BASIC. ... I lobbied, ranted, and raved for BASIC.
+      </blockquote>
+
+      <p>
+        Steven Levy, in his book <em>Hackers</em>, provides some more context around Albrecht's conversion.
+      </p>
+
+      <blockquote>
+        Albrecht immediately decided that BASIC was <em>it</em>, and FORTRAN was dead. BASIC was interactive, so that people hungry for computer use would get instant response from the machine (FORTRAN was geared for batch processing). It used English-like words like INPUT, and THEN, and GOTO, so it was easier to learn. And it had a built-in random number generator, so kids could use it to write games quickly. Albrecht knew even then that games would provide the seductive scent that would lure kids to programming - and hackerism.
+      </blockquote>
+
+      <p>
+        This focus seems to be that BASIC was better suited to the kind of work that Albrecht was doing with students in that it was more accessible to them than FORTRAN. Levy's statement that Albrecht had at least some focus on games is interesting as well.
+      </p>
+
+      <p>
+        Albrecht gives a few references in the interview that allow us some insight into the historical context. Albrecht became involved with the National Council of Teachers of Mathematics (NCTM). When the NCTM appointed a Computer-Oriented Mathematics Committee, Albrecht was on it. The committee published the book <em>Computer Facilities for Mathematics Instruction</em> in 1967, an introduction to computing, and a book on BASIC. Apparently, as part of this, or at least in the context of it, Albrecht established the Society to Help Abolish FORTRAN Teaching (SHAFT).
+      </p>
+
+      <p>
+        Another reference refers to a booklet called <em>Introduction to an Algorithmic Language (BASIC)</em>, which Albrecht had a hand in. This booklet was published in 1968 by the NCTM. Yet another reference is the book <em>Computer Methods in Mathematics</em>, published in 1969. Further situating the history, Albrecht, in the interview, refers to the "Midpeninsula Free University." This group ran from 1966 to 1971 but had its most active years in 1968 and 1969. (I have no idea what the "2848" referred to in the interview means in this context.)
+      </p>
+
+      <p>
+        This history is also situated when Albrecht mentions Hewlett Packard's first programmable calculator, which he mistakenly remembers as the 9600. HP's first calculator was the 9100A, which came out in March of 1968, followed by the 9100B in the fall of 1969. The Wang calculator also being mentioned would have been the 7800 series which came out in mid-1969.
+      </p>
     </article>
   </main>
 </body>
