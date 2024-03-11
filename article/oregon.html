@@ -245,6 +245,56 @@
       <p>
         From a purely ludic experience perspective, what's also nice is that there <em>can</em> be a more-or-less workable strategy. In fact, this strategy can differ depending on what version of the game you are playing.
       </p>
+
+      <p>
+        In the 1985 version, if your only goal is to finish the game in roughly forty-five minutes, you should play as the banker. Make sure to stock up on food and spare wagon parts. Your strategy should be to run the oxen hard and overfeed the settlers. Buy one new oxen for every two that die and always pay to cross a river instead of fording it. Doing this means you'll find that you're in Oregon before the first snow.
+      </p>
+
+      <p>
+        The strategy can be less formulaic when playing the game's previous versions. In these versions, you should buy little, if any, food, reserving your precious money for other things. You then hunt roughly every other turn, assuming you feel comfortable typing the hunting command quickly. It's also a good idea to avoid carrying too much stuff at any time since you always seem to lose it in some disaster. Traveling light, however, does mean you have to make more stops at forts. This situational strategy means that the biggest problem is usually running out of time, thus being trapped on a mountain trail when winter arrives.
+      </p>
+
+      <h2>The Programming Context</h2>
+
+      <p>
+        The trio of authors wrote the game in HP Time-Shared BASIC on an HP-2100 series minicomputer. From their accounts, most of the programming proved straightforward, but one difficulty was implementing hunting in the game, which a player could do to replenish food resources. The solution came from Heinemann, who realized that BASIC could register inputs from the teletype and the length of time *between* inputs. Heinemann used this feature to make the hunt result dependent on how fast the player could accurately type the word "Bang."
+      </p>
+
+      <img src="../assets/images/oregon/oregon-trail-teletype-intput-output.png" width="640" height="210">
+
+      <p>
+        Rawitsch and crew used a teletype model with an internal bell, which worked like a traditional typewriter to mark the end of a line while typing. However, the computer could also activate this bell at the other end of the connection to signal errors or alerts. Certain noteworthy events would ring this bell in the game, such as the player scoring a perfect shot while hunting. The line of BASIC that outputs the message above reads:
+      </p>
+
+      <pre><code>
+        1755  PRINT "RI"'7"GHT BETWEE"'7"N THE EYE"'7"S---YOU GOT A"'7" BIG ONE!!"'7"!!"
+      </code></pre>
+
+      <p>
+        The 7 is the ASCII code to ring the bell. Since each "7" is spaced about ten characters apart, the bell would ring once per second as the teletypewriter printed out the line.
+      </p>
+
+      <p>
+        Almost every event in the game involves some random variation in its outcome, but rarely so much as to seem unfair or unpredictable. For example, the following source code governs a random event that tests your preparedness against cold weather in a mountain pass:
+      </p>
+
+      <pre><code>
+        2935  PRINT "COLD WEATHER---BRRRRRRR!---YOU ";
+        2940  IF C>22+4*RND(0) THEN 2955
+        2945  PRINT "DON'T ";
+        2950  C1=1
+        2955  PRINT "HAVE ENOUGH CLOTHING TO KEEP YOU WARM"
+        2960  IF C1=0 THEN 3100
+        2965  GOTO 4700
+      </code></pre>
+
+      <p>
+        The variable C in line 2940 stores the dollar amount the player has spent on cold weather gear. So this code effectively says, "If the player has at least (22 + a random number between 0 and 4) clothing, that's sufficient to stay warm."
+      </p>
+
+      <p>
+        A player might figure out through trial and error that while $20 spent on clothes is never enough and $30 always seems sufficient, there's some uncertainty from game to game about where exactly in the middle is safe. There is some genuineness here that could correlate to the unpredictable strength of a winter storm.
+      </p>
     </article>
   </main>
 </body>
