@@ -295,6 +295,26 @@
       <p>
         A player might figure out through trial and error that while $20 spent on clothes is never enough and $30 always seems sufficient, there's some uncertainty from game to game about where exactly in the middle is safe. There is some genuineness here that could correlate to the unpredictable strength of a winter storm.
       </p>
+
+      <p>
+        Being attacked by someone or something is a persistent danger in the game, and the following bit of source determines the likelihood each turn of being attacked:
+      </p>
+
+      <pre><code>
+        2100  IF RND(0)*10>((M/100-4)^2+72)/((M/100-4)^2+12)-1 THEN 2500
+      </code></pre>
+
+      <p>
+        The equation pivots on the M variable, representing the miles traversed. Offsetting and dividing it by differently scaled amounts creates a probability distribution curve across the player's journey. This calculation makes attacks more likely as the student moves away from settled Missouri and then less likely again as they approach their final destination.
+      </p>
+
+      <p>
+        This mathematical trick establishes a deepening and then easing sense of danger without printing any text to this effect explicitly to the player. A similar trick increases the chance of cold-weather hazards during the middle of the journey when the homesteaders would logically be crossing the Rocky Mountains, even though the game never explicitly mentions this geography.
+      </p>
+
+      <p>
+        From the point of view of game mechanics and considering the geography aspect, the game lacks explicit markers of progress other than the increasing mileage number. The above shows that the authors designed the game to give players a sense of forward progress and geographical consistency.
+      </p>
     </article>
   </main>
 </body>
