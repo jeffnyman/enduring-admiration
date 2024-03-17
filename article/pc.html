@@ -28,6 +28,8 @@
     <article>
       <h1>People's Computing</h1>
 
+      <h2>From the Mathematical to the Guessing Game</h2>
+
       <p>
         In the December issue (volume 1, issue 2) of PCC, there are two programs worth considering: <em>Stars</em> and <em>Bagels</em>. The first is quite simple: it's essentially a guessing game. The issue asks: "Is there a strategy that will guarantee always guessing the number in at most 6 guesses?" You can example of one of my playthroughs:
       </p>
@@ -61,6 +63,102 @@
 
       <p>
         You can check out the <a href="../assets/source/stars.bas">BASIC source for Stars</a>. You can play a DOS-based version of <a href="../assets/play/stars/">Stars in your browser</a>. I also do have a zipped up <a href="../assets/play/stars-db.zip">DOSBox Stars execution</a> that you can play around with.
+      </p>
+
+      <p>
+        The <em>Bagels</em> game is more of a mathematical game in nature, specifically based on the "Pico, Fermi, Bagel" game, which is similar to a game like "Mastermind." The idea is that the game picks some three digit number and you have to guess what it is. For each guess you make, the game responds with one of the following:
+      </p>
+
+      <ul>
+        <li>PICO - one digit is in the wrong place</li>
+        <li>FERMI - one digit is in the correct place</li>
+        <li>BAGELS - no digit is correct</li>
+      </ul>
+
+      <p>
+        To show you a playthrough, one obvious choice to me seemed to be 100 so I tried that:
+      </p>
+
+      <pre><div>
+        OKAY, I HAVE A NUMBER IN MIND.
+
+        GUESS # 1 :? <strong>100</strong>
+
+        OH. I FORGOT TO TELL YOU THAT THE NUMBER I HAVE IN MIND HAS NO TWO DIGITS THE SAME.
+      </div></pre>
+
+      <p>
+        Okay, good to know. So I start playing around:
+      </p>
+
+      <pre><div>
+        GUESS # 1 :? <strong>123</strong>
+                            BAGELS
+
+        GUESS # 2 :? <strong>456</strong>
+                            PICO FERMI
+      </div></pre>
+
+      <p>
+        So the digits 1, 2, and 3 are not in the number. With 4, 5, and 6, I managed to get one digit in the correct place. Another one of my choices is the correct digit but it's in the wrong place. So ideally, I guess, you want to find the one that's in the right place first. I tried 423 and that gave me <code>BAGELS</code>. Since I know 2 and 3 are out, that would suggest 4 is as well. So I tried: 465 and that got me <code>PICO PICO</code>. So I knew this much:
+      </p>
+
+      <ul>
+        <li>456: PICO FERMI</li>
+        <li>465: PICO PICO.</li>
+      </ul>
+
+      <p>
+        So how about 546? Basically I ended up with a playthrough like this:
+      </p>
+
+      <pre><div>
+        GUESS # 1 :? <strong>123</strong>
+                            BAGELS
+
+        GUESS # 2 :? <strong>456</strong>
+                            PICO FERMI
+
+        GUESS # 3 :? <strong>423</strong>
+                            BAGELS
+
+        GUESS # 4 :? <strong>465</strong>
+                            PICO PICO
+
+        GUESS # 5 :? <strong>546</strong>
+                            PICO PICO
+
+        GUESS # 6 :? <strong>564</strong>
+                            PICO PICO
+
+        GUESS # 7 :? <strong>654</strong>
+                            FERMI FERMI
+      </div></pre>
+
+      <p>
+        So it looks like 65 is correct. That just leaves the last number. I know it can't be 1, 2, or 3. And 4 is apparently out. It can't be 5 because no two numbers can be alike. So it can't be 6 either.
+      </p>
+
+      <pre><div>
+        GUESS # 8 :? <strong>657</strong>
+                            FERMI FERMI
+
+        GUESS # 9 :? <strong>658</strong>
+                            FERMI FERMI
+
+        GUESS # 10 :? <strong>659</strong>
+                             FERMI FERMI
+
+        GUESS # 11 :? <strong>650</strong>
+        YOU GOT IT
+      </div></pre>
+
+      <p>
+        And there you go, victory! There are clearly better and worse strategies here but the main focus is making sure you keep context with what you've guessed before.
+      </p>
+
+      <p>
+        You can check out the <a href="../assets/source/bagels.bas">BASIC source for Bagels</a>. You can play a DOS-based version of <a href="../assets/play/bagels/">Bagels in your browser</a>. I also do have a zipped up <a href="../assets/play/bagels-db.zip">DOSBox Bagels execution</a> that you can play around with.
       </p>
     </article>
   </main>
