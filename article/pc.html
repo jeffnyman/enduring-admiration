@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en-US" dir="auto" class="no-js">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People's Computing - Enduring Admiration</title>
+  <meta name="description" content="Exploring the Tapestry of Faith: Navigating History, Religion, and Science">
+  <meta name="author" content="Jeff Nyman">
+  <meta name="msapplication-TileImage" content="../assets/site/mstile-150x150.png">
+  <meta name="msapplication-config" content="../assets/site/browserconfig.xml">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/site/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/site/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/site/android-chrome-192x192.png">
+  <link rel="mask-icon" type="image/svg" href="../assets/site/safari-pinned-tab.svg" color="#5bbad5">
+  <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../assets/site/apple-touch-icon.png">
+  <link rel="me" href="https://enduringadmiration.com">
+  <link rel="manifest" href="../assets/site/site.webmanifest">
+  <link rel="stylesheet" href="../styles/site.css">
+  <script type="module">
+    document.documentElement.classList.replace("no-js", "js");
+  </script>
+  <script src="../scripts/site.js" defer></script>
+</head>
+<body>
+  <main>
+    <article>
+      <h1>People's Computing</h1>
+
+      <p>
+        In the December issue (volume 1, issue 2) of PCC, there are two programs worth considering: <em>Stars</em> and <em>Bagels</em>. The first is quite simple: it's essentially a guessing game. The issue asks: "Is there a strategy that will guarantee always guessing the number in at most 6 guesses?" You can example of one of my playthroughs:
+      </p>
+
+      <pre><div>
+        OK, I AM THINKING OF A NUMBER. START GUESSING.
+
+        YOUR GUESS? <strong>50</strong>
+        *****
+
+        YOUR GUESS? <strong>40</strong>
+        ****
+
+        YOUR GUESS? <strong>60</strong>
+        *****
+
+        YOUR GUESS? <strong>55</strong>
+        *******
+      </div></pre>
+
+      <p>
+        By default, the game is designed to pick a number between 1 and 100 so here I tried a bisecting strategy to just start with a middle of the road number. I can see that I'm gaining more stars between 50 and 55 but I also have relatively few attempts left since the game limits you to seven guesses.
+      </p>
+
+      <pre><div>
+        YOUR GUESS? <strong>54</strong>
+        **************************************************!!!
+
+        YOU GOT IT IN 7 GUESSES!! LET'S PLAY AGAIN.
+      </div></pre>
+
+      <p>
+        You can check out the <a href="../assets/source/stars.bas">BASIC source for Stars</a>. You can play a DOS-based version of <a href="../assets/play/stars/">Stars in your browser</a>. I also do have a zipped up <a href="../assets/play/stars-db.zip">DOSBox Stars execution</a> that you can play around with.
+      </p>
+    </article>
+  </main>
+</body>
+</html>
