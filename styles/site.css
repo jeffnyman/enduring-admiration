@@ -1,16 +1,13 @@
 @import url("./fonts.css");
+@import url("./root.css");
 @import url("./images.css");
 
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
-}
-
-* {
   margin: 0;
   padding: 0;
-  font: inherit;
+  box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -51,4 +48,13 @@ li,
 blockquote {
   max-width: var(--p-max-width, 65ch);
   text-wrap: pretty;
+}
+
+/* PRIMARY */
+
+article {
+  font-family: var(--ff-base);
+  font-size: var(--fs-400);
+  line-height: 1.7;
+  word-spacing: 0.16em;
 }
