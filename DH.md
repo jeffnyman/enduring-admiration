@@ -24,4 +24,12 @@ In assessing the extent of pan-Deuteronomism, then, it is important to remember 
 
 "The idea of a “Deuteronomistic school” continues to be widely held yet poorly defined" (McKenzie, 2012, p. 407).
 
+"When a word or a concept has taken over so much of our thought it seems only right to pause and explore its appropriate meaning" (Coggins, 1999, p. 23).
+
+"Yet of so wide-ranging and influential a movement there is no external evidence of any kind; the whole history of tradition has to be worked out by inference. Deuteronomistic influence may be traced, but there is still no agreement as to who the Deuteronomists were" (Coggins, 1999, p. 26).
+
+"the question must be asked whether confusion is not being increased by applying the same description to what are essentially different phenomena" (Coggins, 1999, p. 34).
+
 The so-called Deuteronomists were thought to be responsible for Deuteronomy, which seems obvious. They were also responsible for the so-called Deuteronomistic History: Joshua, Judges, Samuel and Kings. Deuteronomists were also, in some cases, thought to be responsible primarily for the non-narrative prose in Jeremiah and, likewise, for Isaiah 36-39, mainly because of the close parallel (almost verbatim, in fact) in 2 Kgs 18-20. The Deuteronomists were even thought to be responsible for small units in Amos and Hosea. Some have even felt that the work of the Deuteronomists is represented in most of the books of the Torah, with a further suggestion being that perhaps they were the compilers, if not the direct authors, of the Torah as it has come down to us. In fact, in some cases, they are credited having a hand in all of the prophetic books as well as large number of the Psalms.
+
+There was a time when the term "Deuteronomy" applied quite simply to the book of that name, while "Deuteronomic" was a term attached to the proposed Pentateuchal source D. In reality, there was little daylight between these terms because, at least in most versions of Pentateuchal scholarly work, D was largely confined to the book of Deuteronomy. Eventually the term "Deuteronomic" came to refer to whatever pertains specifically to the book of Deuteronomy, while "Deuteronomistic" came to refer to the general influence or thought-forms associated with the work of the Deuteronomists.
