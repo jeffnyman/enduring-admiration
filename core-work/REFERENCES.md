@@ -1,0 +1,1 @@
+Thompson, T. L. (1994). Martin Noth and the history of Israel. In S. L. McKenzie & M. P. Graham (Eds.), _The history of Israel’s traditions: The heritage of Martin Noth_ (pp. 81–90). Sheffield Academic Press.
