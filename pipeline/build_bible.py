@@ -103,6 +103,10 @@ def sources():
         abbr: f"{S.QF}/swete-tei/{by_tlg[tlg]}" for _, abbr, tlg, tgt in SWETE_BOOKS if wanted(abbr, tgt)})
     src["qf-lxx-morph"] = dict(src["qf-lxx-morph"], files={
         abbr: f"{S.QF}/morph-morpheus/{code:03d}-{abbr}.txt" for code, abbr, _, tgt in SWETE_BOOKS if wanted(abbr, tgt)})
+    src["openbible-xref"] = dict(
+        title="OpenBible.info cross references", url="https://a.openbible.info/data/cross-references.zip",
+        file="cross-references.zip", version=None, license="CC-BY",
+        attribution="Cross references from OpenBible.info (CC BY), ranked by user votes")
     # the official SBLGNT (eBible's USFM conversion broke words around footnotes)
     sbl = f"{S.GH}/LogosBible/SBLGNT/{SBLGNT_SHA}/data"
     src.pop("ebible-grcsbl")
@@ -559,6 +563,7 @@ def build(report):
             report["morphgnt_bad"].append(c)
 
     build_layouts(con, report)
+    load_cross_refs(con, data, report)
     S.fill_lemmas(con)
     build_lemma_links(con, report)
     con.execute("INSERT INTO verse_fts(verse_fts) VALUES ('rebuild')")
@@ -569,6 +574,63 @@ def build(report):
     con.execute("VACUUM")
     report["t_total"] = time.time() - t0
     return con
+
+
+# ----------------------------------------------------------------------------- cross-references
+def load_cross_refs(con, data, report):
+    """OpenBible.info references (English numbering = Standard) plus the WEB's own \\x notes."""
+    canon = {(b, c, v): cid for cid, b, c, v in con.execute("SELECT id, book_id, chapter, verse FROM canon_verse")}
+    osis = {b[1]: b[0] for b in BOOKS}
+    stats = Counter()
+
+    def ref(o):                                          # 'Rom.1.19' -> canon id
+        b, c, v = o.split(".")
+        return canon.get((osis.get(b), int(c), int(v)))
+
+    rows = []
+    with zipfile.ZipFile(io.BytesIO(data["openbible-xref"])) as z:
+        text = z.read("cross_references.txt").decode("utf-8")
+    for line in text.splitlines()[1:]:
+        f = line.split("\t")
+        if len(f) < 3:
+            continue
+        votes = int(f[2])
+        if votes < 0:
+            stats["openbible voted down (skipped)"] += 1
+            continue
+        lo, _, hi = f[1].partition("-")
+        a, x, y = ref(f[0]), ref(lo), ref(hi or lo)
+        if a and x and y and y >= x:
+            rows.append((a, x, y, votes, "openbible"))
+            stats["openbible"] += 1
+        else:
+            stats["openbible unresolved"] += 1
+    # WEB notes: 'Exodus 23:13; Psalms 16:4', 'Isaiah 66:2; 66:10,13', 'See Job 5:1'
+    names = {b[2]: b[0] for b in BOOKS} | {"Wisdom": "WIS", "Song of Solomon": "SNG"}
+    pat = re.compile(r"(?:See\s+)?(?:((?:[1-4] )?[A-Z][A-Za-z ]+?)\s+)?(\d+):([\d,\- ]+)")
+    for cid, text in con.execute("""SELECT cv.id, n.text FROM verse_note n JOIN verse v ON v.id = n.verse_id
+                                    JOIN verse_map m ON m.verse_id = v.id JOIN canon_verse cv ON cv.id = m.canon_verse_id
+                                    WHERE n.kind = 'crossref' AND v.edition_id = 'WEB'"""):
+        book = None
+        for part in re.split(r";\s*", text):
+            m = pat.search(part)
+            if not m:
+                stats["web unparsed"] += 1
+                continue
+            book = names.get(m[1].strip(), book) if m[1] else book
+            for piece in m[3].replace(" ", "").split(","):
+                if not piece:
+                    continue
+                lo, _, hi = piece.partition("-")
+                x = canon.get((book, int(m[2]), int(lo)))
+                y = canon.get((book, int(m[2]), int(hi or lo)))
+                if book and x and y:
+                    rows.append((cid, x, y, None, "web"))
+                    stats["web"] += 1
+                else:
+                    stats["web unresolved"] += 1
+    con.executemany("INSERT OR IGNORE INTO cross_ref VALUES (?,?,?,?,?)", rows)
+    report["xref"] = dict(stats)
 
 
 # ----------------------------------------------------------------------------- equivalents
@@ -958,7 +1020,16 @@ def verify(con, report):
     got = top("heb>grk", "H1697")
     check("G3056" in got or "G4487" in got, f"heb>grk H1697 (davar): logos or rhema among the top 3 (got {got})")
 
-    say("\n## 8. Search")
+    say("\n## 8. Cross-references")
+    x = report["xref"]
+    say(f"- {x}")
+    ok_ob = x.get("openbible", 0) / max(1, x.get("openbible", 0) + x.get("openbible unresolved", 0))
+    check(ok_ob > 0.995, f"OpenBible references resolving to Standard verses: {ok_ob:.2%}")
+    check(x.get("web", 0) > 300, f"WEB cross-reference notes imported: {x.get('web', 0)}")
+    with_refs = q("SELECT COUNT(DISTINCT from_canon) FROM cross_ref")[0][0]
+    say(f"- (info) Standard verses with cross-references: {with_refs}")
+
+    say("\n## 9. Search")
     for term in ("beginning", "covenant", "mercy"):
         n = q("SELECT COUNT(*) FROM verse_fts f JOIN verse v ON v.id=f.rowid WHERE verse_fts MATCH ? "
               "AND v.edition_id='WEB'", term)[0][0]

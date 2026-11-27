@@ -146,6 +146,18 @@ CREATE TABLE layout_verse (
 CREATE INDEX layout_verse_chapter ON layout_verse (book_id, chapter, seq);
 CREATE INDEX layout_verse_canon   ON layout_verse (canon_verse_id);
 
+-- Cross-references between Standard verses. OpenBible.info (CC BY, ranked by user votes; only
+-- references with votes >= 0) and the WEB's own cross-reference notes (incl. the deuterocanon).
+CREATE TABLE cross_ref (
+  from_canon INTEGER NOT NULL REFERENCES canon_verse(id),
+  to_start   INTEGER NOT NULL REFERENCES canon_verse(id),
+  to_end     INTEGER NOT NULL REFERENCES canon_verse(id),   -- = to_start for a single verse
+  votes      INTEGER,                                       -- OpenBible votes; NULL for WEB notes
+  source     TEXT    NOT NULL CHECK (source IN ('openbible','web')),
+  PRIMARY KEY (from_canon, to_start, to_end, source)
+);
+CREATE INDEX cross_ref_from ON cross_ref (from_canon, votes DESC);
+
 CREATE TABLE verse_note (
   id       INTEGER PRIMARY KEY,
   verse_id INTEGER NOT NULL REFERENCES verse(id) ON DELETE CASCADE,
