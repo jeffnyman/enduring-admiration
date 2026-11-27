@@ -8,9 +8,10 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 - **Side by side:** English (WEB) beside the Hebrew, the Septuagint and the Greek New Testament, aligned verse by verse; columns can be switched on and off.
 - **Word study:** click any Hebrew or Greek word for its lemma, parsing in plain English, lexicon entries (Strong's, BDB, Thayer's, LSJ), Septuagint equivalents and all occurrences. The **Glosses** switch puts an English gloss under every word.
+- **Commentaries:** the ¶ button beside a verse opens Tyndale Open Study Notes, unfoldingWord's Translation Notes (linked to the Hebrew and Greek words they discuss), the Catena Aurea (the Church Fathers on the Gospels) and Keil & Delitzsch (on the Hebrew Old Testament). Each book has an introduction page. [About the texts](TEXTS.md#the-commentaries) explains the traditions they come from.
 - **Cross-references:** the ↗ button beside a verse number lists related verses with their text (OpenBible.info, CC BY, ranked by votes, plus the WEB's own notes).
 - **Bookmarks and notes:** ☆ and ✎ beside a verse number. The downloaded reader saves them in a file on your computer, outside the app folder so upgrades keep them: `~/Library/Application Support/enduring-admiration/notes.json` on macOS, `%APPDATA%\enduring-admiration\notes.json` on Windows, `~/.local/share/enduring-admiration/notes.json` on Linux, or wherever `--notes FILE` (or `BIBLE_NOTES`) points. Without a notes file, for example on a hosted site, they stay in the browser. Notes made in the browser are copied into the file the first time it's available. The Bookmarks page shows where they are, and can export and import them as a file.
-- **Keyboard:** `j`/`k` next/previous verse, `h`/`l` or ←/→ previous/next chapter, `g` glosses, `b` bookmark, `e` note, `x` cross-references, `?` for the list.
+- **Keyboard:** `j`/`k` next/previous verse, `h`/`l` or ←/→ previous/next chapter, `g` glosses, `b` bookmark, `e` note, `x` cross-references, `c` commentary, `?` for the list.
 - **Search:** English words or "phrases", Hebrew and Greek (vowels and accents optional), or a Strong's number such as H7225.
 - **Canons:** the book picker lists the Protestant, Catholic or Orthodox canon; the latter two read Daniel and Esther with their Greek additions in place.
 
@@ -42,6 +43,13 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 - **Septuagint equivalents.** For a Hebrew word, the Greek words the Septuagint most often uses for it (and for a Greek word, the Hebrew words it usually renders), with how often each Greek word appears in the New Testament. They are measured from verses where both words occur in the aligned Hebrew and Greek texts (a Dice score), so they are statistical, not a word-by-word alignment.
 - **Ketiv / Qere.** In some places the Hebrew text is written one way (*ketiv*, "what is written") but traditionally read another (*qere*, "what is read"). The reader shows both.
 - **Morpheus.** A program from the Perseus Project that analyzes Greek word forms automatically.
+
+**Commentaries**
+
+- **Tyndale Open Study Notes.** Study-Bible notes, book introductions, theme articles and profiles from Tyndale House Publishers (2022, CC BY-SA 4.0). Modern evangelical.
+- **Translation Notes.** unfoldingWord's notes on the Hebrew and Greek for Bible translators (CC BY-SA 4.0). Each note quotes the original words it explains, and the reader links it to them.
+- **Catena Aurea.** Thomas Aquinas's chain of comments from the Church Fathers on the four Gospels, in the English translation made under J. H. Newman (1841–45; public domain).
+- **Keil & Delitzsch.** C. F. Keil and F. Delitzsch's 19th-century commentary on the Hebrew text of the Old Testament (public domain; transcription from Wikisource via CrossWire).
 
 **Verse numbering**
 

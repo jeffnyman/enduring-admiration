@@ -16,6 +16,7 @@ versification facts (e.g. Hebrew Gen 32:1 = English 31:55).
 
 Usage:  .venv/bin/python pipeline/build_bible.py      (writes data/build_report.md too)
 """
+import bisect
 import difflib
 import io
 import json
@@ -77,6 +78,7 @@ SKIPPED_SWETE = {"PssSol": "Psalms of Solomon: not canonical in any tradition co
 # The Old Greek (pre-Theodotion) Daniel, Susanna and Bel: a separate optional edition
 OLD_GREEK = {"Dan": "DAG", "Sus": "SUS", "Bel": "BEL"}
 SBLGNT_SHA = "d7f35adca9ec410e1d1499c63b4dd989d76c8d4d"
+CATENA_SHA = "aebb0f6b2b313fd3732dab9b7f28714fbe967f40"
 SBLGNT_BOOKS = ("Matt Mark Luke John Acts Rom 1Cor 2Cor Gal Eph Phil Col 1Thess 2Thess 1Tim 2Tim Titus Phlm "
                 "Heb Jas 1Pet 2Pet 1John 2John 3John Jude Rev").split()
 
@@ -117,6 +119,40 @@ def sources():
         version=SBLGNT_SHA, license="CC-BY-4.0",
         attribution="SBL Greek New Testament. Copyright © 2010 Society of Biblical Literature and Logos "
                     "Bible Software. CC BY 4.0.")
+    # commentaries (see bibleingest/commentary.py)
+    src["tyndale-osn"] = dict(
+        title="Tyndale Open Study Notes (release 1.25)",
+        url="https://tyndaleopenresources.com/wp-content/themes/tyndale-openresources/files/tyndale_open-studynotes.zip",
+        file="tyndale_open-studynotes.zip", version="1.25", license="CC-BY-SA-4.0",
+        attribution="Adapted from Tyndale Open Study Notes. The original work by Tyndale House Publishers is "
+                    "available for free at http://www.tyndaleopenresources.com. Changes: references converted to "
+                    "this reader's verse numbering and links; markup simplified. Copyright (C) 2022 Tyndale House "
+                    "Publishers, CC BY-SA 4.0.")
+    src["uw-tn"] = dict(
+        title="Translation Notes (unfoldingWord en_tn, release v92)",
+        url="https://git.door43.org/unfoldingWord/en_tn/archive/v92.zip", file="en_tn-v92.zip", version="v92",
+        license="CC-BY-SA-4.0",
+        attribution="The original work by unfoldingWord is available from https://www.unfoldingword.org/utn "
+                    "(CC BY-SA 4.0). Changes: notes linked to the words of this reader's Hebrew (WLC) and Greek "
+                    "(SBLGNT) texts and to its verse numbering; Markdown converted; links to translationAcademy "
+                    "articles removed; notes on translation technique marked so they can be hidden.")
+    src["catena-lemtom"] = dict(
+        title="Catena Aurea (Newman translation), OSIS edition by Tom Lemmens",
+        url=f"{S.GH}/lemtom/catena/{CATENA_SHA}/catena.xml", file="catena.xml", version=CATENA_SHA,
+        license="Public Domain (CC0 1.0 for the edition)",
+        attribution="Thomas Aquinas, Catena Aurea, translated under J. H. Newman (1841–45), public domain; OSIS "
+                    "edition by Tom Lemmens, github.com/lemtom/catena (CC0 1.0).")
+    src["crosswire-kd"] = dict(
+        title="Keil & Delitzsch, Biblical Commentary on the Old Testament (CrossWire SWORD module KD 2.0)",
+        url="https://www.crosswire.org/ftpmirror/pub/sword/packages/rawzip/KD.zip", file="KD.zip", version="2.0",
+        license="Public Domain (transcription from Wikisource, CC BY-SA 4.0)",
+        attribution="C. F. Keil and F. Delitzsch, Biblical Commentary on the Old Testament (T&T Clark), public "
+                    "domain; transcription from Wikisource (CC BY-SA 4.0) as packaged in the CrossWire SWORD "
+                    "module KD. Its Hebrew is unpointed and has transcription errors.")
+    src["ebible-kjv"] = dict(
+        title="King James Version, USFM (used only for the KJV verse counts that index the K&D module)",
+        url="https://ebible.org/Scriptures/eng-kjv2006_usfm.zip", file="eng-kjv2006_usfm.zip", version=None,
+        license="Public Domain", attribution="King James Version, eBible.org (public domain)")
     return src
 
 
@@ -566,6 +602,7 @@ def build(report):
     load_cross_refs(con, data, report)
     S.fill_lemmas(con)
     build_lemma_links(con, report)
+    load_commentaries(con, data, report)
     con.execute("INSERT INTO verse_fts(verse_fts) VALUES ('rebuild')")
     con.execute("INSERT INTO schema_meta VALUES ('built_at', datetime('now'))")
     con.commit()
@@ -631,6 +668,133 @@ def load_cross_refs(con, data, report):
                     stats["web unresolved"] += 1
     con.executemany("INSERT OR IGNORE INTO cross_ref VALUES (?,?,?,?,?)", rows)
     report["xref"] = dict(stats)
+
+
+# ----------------------------------------------------------------------------- commentaries
+def load_commentaries(con, data, report):
+    """Tyndale, unfoldingWord, Catena Aurea and Keil & Delitzsch. Their references use English
+    (KJV-style) numbering, which is Standard numbering in nearly every verse; a reference is
+    clamped to the nearest Standard verses inside the book. unfoldingWord notes are then linked
+    to the WLC / SBLGNT words they quote."""
+    from bibleingest import commentary as C
+    t0, stats = time.time(), Counter()
+    entries = (C.tyndale(data["tyndale-osn"], stats) + C.unfoldingword(data["uw-tn"], stats)
+               + C.catena(data["catena-lemtom"].decode("utf-8"), stats)
+               + C.keil_delitzsch(data["crosswire-kd"], C.kjv_counts(data["ebible-kjv"]), stats))
+    con.executemany("INSERT INTO commentary VALUES (:id,:source_id,:title,:short_title,:author,:written,"
+                    ":tradition,:description,:sort)", [dict(c, sort=i) for i, c in enumerate(C.COMMENTARIES)])
+    ids = defaultdict(list)
+    for (cid,) in con.execute("SELECT id FROM canon_verse ORDER BY id"):
+        ids[cid // 1_000_000].append(cid)
+    name = {b[0]: b[2] for b in BOOKS}
+
+    def resolve(r):
+        """Standard (first, last) verse ids for a reference: the first Standard verse at or after its
+        start (staying in the same chapter) and the last at or before its end."""
+        book, c1, v1, c2, v2 = r
+        have = ids.get(ORD[book], [])
+        lo, hi = S.canon_verse_id(book, c1, v1), S.canon_verse_id(book, c2, v2)
+        i = bisect.bisect_left(have, lo)
+        if i == len(have) or (have[i] // 1000) % 1000 != c1:
+            return None
+        a = have[i]
+        b = have[bisect.bisect_right(have, hi) - 1] if hi >= a else a
+        return a, max(a, b)
+
+    def label(r):
+        book, c1, v1, c2, v2 = r
+        start = f"{name[book]} {c1}:{v1}" if v1 else f"{name[book]} {c1} (title)"
+        if (c1, v1) == (c2, v2):
+            return start
+        return f"{start}–{v2}" if c1 == c2 else f"{start}–{c2}:{v2}"
+
+    rows, refs, keep = [], [], []
+    for e in entries:
+        spans = [s for s in (resolve(r) for r in e.refs) if s]
+        if not spans:
+            stats[f"{e.commentary}: reference not in Standard numbering (skipped)"] += 1
+            continue
+        eid = len(rows) + 1
+        minor = int(bool(e.commentary == "uw" and e.label and C.UW_MECHANICS.match(e.label)))
+        rows.append((eid, e.commentary, e.kind, e.refs[0][0], label(e.refs[0]), e.title, e.label, e.quote,
+                     minor, e.body, e.sort))
+        refs += [(a, b, eid) for a, b in spans]
+        keep.append((eid, e, spans))
+        stats[f"{e.commentary} {e.kind}"] += 1
+    con.executemany("INSERT INTO commentary_entry VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows)
+    con.executemany("INSERT OR IGNORE INTO commentary_ref VALUES (?,?,?)", refs)
+
+    # link unfoldingWord quotes to words: WLC for the OT, SBLGNT for the NT
+    words = defaultdict(list)                                  # canon id -> [(token, norm, variant)]
+    for edition in ("WLC", "SBLGNT"):
+        for cid, tid, norm, variant in con.execute(
+                """SELECT m.canon_verse_id, t.id, t.surface_norm, t.variant FROM verse v
+                   JOIN verse_map m ON m.verse_id = v.id JOIN token t ON t.verse_id = v.id
+                   WHERE v.edition_id = ? ORDER BY m.canon_verse_id, v.id, t.position""", (edition,)):
+            words[cid].append((tid, norm, variant))
+    links = []
+    for eid, e, spans in keep:
+        if e.commentary != "uw" or not e.quote or e.occurrence == 0:
+            continue
+        a, b = spans[0]
+        seen, toks = set(), []
+        for cid in range(a, b + 1):
+            for w in words.get(cid, ()):
+                if w[0] not in seen:
+                    seen.add(w[0]); toks.append(w)
+        if not toks:
+            continue
+        lang = "heb" if e.refs[0][0] not in NT else "grk"
+        found, how = match_quote(e.quote, e.occurrence, toks, lang)
+        stats[f"uw {lang} words: {how}"] += 1
+        links += [(t, eid) for t in found]
+    con.executemany("INSERT OR IGNORE INTO commentary_word VALUES (?,?)", links)
+    report["commentary"] = dict(stats)
+    report["t_commentary"] = time.time() - t0
+
+
+def match_quote(quote, occurrence, toks, lang):
+    """Token ids for an unfoldingWord quote ('w1 w2 & w3', '…' also separates parts) in a verse's
+    tokens. Exact runs first, trying the Ketiv and the Qere reading of the Hebrew; otherwise the
+    words that can be found one by one, in order (reported as partial)."""
+    norm = norm_hebrew if lang == "heb" else norm_greek
+    parts = [[w for w in (norm(x) for x in re.split(r"[\s\u05be]+", p)) if w]
+             for p in re.split(r"\s*(?:&|…)\s*", quote)]
+    parts = [p for p in parts if p]
+    if not parts:
+        return [], "no words"
+    best = []
+    for skip in ("qere", "ketiv"):
+        stream = [t for t in toks if t[2] != skip]
+        norms = [t[1] for t in stream]
+
+        def runs(p, start=0):
+            return [i for i in range(start, len(norms) - len(p) + 1) if norms[i:i + len(p)] == p]
+
+        starts = runs(parts[0])
+        chosen = starts if occurrence < 0 else starts[occurrence - 1:occurrence]
+        for s0 in chosen:
+            ids, pos = [t[0] for t in stream[s0:s0 + len(parts[0])]], s0 + len(parts[0])
+            for p in parts[1:]:
+                nxt = runs(p, pos)
+                if not nxt:
+                    ids = None
+                    break
+                ids += [t[0] for t in stream[nxt[0]:nxt[0] + len(p)]]
+                pos = nxt[0] + len(p)
+            if ids:
+                best += ids
+        if best:
+            return best, "exact"
+    stream, pos, ids = [t for t in toks if t[2] != "qere"], 0, []
+    flat = [w for p in parts for w in p]
+    for w in flat:
+        k = next((i for i in range(pos, len(stream)) if stream[i][1] == w), None)
+        if k is not None:
+            ids.append(stream[k][0]); pos = k + 1
+    if ids and len(ids) * 2 >= len(flat):
+        return ids, "partial"
+    return [], "not found (note kept at verse level)"
 
 
 # ----------------------------------------------------------------------------- equivalents
@@ -1029,7 +1193,38 @@ def verify(con, report):
     with_refs = q("SELECT COUNT(DISTINCT from_canon) FROM cross_ref")[0][0]
     say(f"- (info) Standard verses with cross-references: {with_refs}")
 
-    say("\n## 9. Search")
+    say("\n## 9. Commentaries")
+    from bibleingest.commentary import check_html
+    cs = report.get("commentary", {})
+    say(f"- {cs}")
+    per = dict(q("SELECT commentary_id, COUNT(*) FROM commentary_entry GROUP BY 1"))
+    for cid, least in (("tyndale", 17000), ("uw", 90000), ("catena", 800), ("kd", 8500)):
+        check(per.get(cid, 0) >= least, f"{cid}: {per.get(cid, 0)} entries (expected {least}+)")
+    skipped = sum(v for k, v in cs.items() if "skipped" in k)
+    check(skipped <= 0.005 * sum(per.values()), f"references outside Standard numbering: {skipped}")
+    bad = [(i, p) for i, body in q("SELECT id, body FROM commentary_entry") for p in check_html(body)]
+    check(not bad, f"commentary bodies use only the safe HTML tags ({len(bad)} problems) {bad[:3]}")
+    for lang, least in (("heb", 0.97), ("grk", 0.90)):
+        tot = sum(v for k, v in cs.items() if k.startswith(f"uw {lang} words"))
+        hit = cs.get(f"uw {lang} words: exact", 0) + cs.get(f"uw {lang} words: partial", 0)
+        check(tot and hit / tot >= least, f"unfoldingWord {lang} quotes linked to words: {hit}/{tot} "
+              f"({100 * hit / max(tot, 1):.1f}%; exact {cs.get(f'uw {lang} words: exact', 0)})")
+    for book, ch, v, want in (("GEN", 1, 1, {"tyndale", "uw", "kd"}), ("MAT", 1, 2, {"catena", "tyndale", "uw"}),
+                              ("JON", 1, 17, {"tyndale", "uw", "kd"}), ("PSA", 23, 1, {"tyndale", "uw", "kd"})):
+        cid = S.canon_verse_id(book, ch, v)
+        got = {r[0] for r in q("""SELECT DISTINCT e.commentary_id FROM commentary_ref r JOIN commentary_entry e
+                                  ON e.id = r.entry_id WHERE r.start_canon <= ? AND r.end_canon >= ?
+                                  AND e.kind = 'note'""", cid, cid)}
+        check(want <= got, f"{book} {ch}:{v} has notes from {sorted(want)} (got {sorted(got)})")
+    # a note on a Hebrew word in Jonah 1:17 must point at the WLC's Jonah 2:1 (Hebrew numbering)
+    heb = q("""SELECT DISTINCT v.chapter, v.verse FROM commentary_word w JOIN token t ON t.id = w.token_id
+               JOIN verse v ON v.id = t.verse_id JOIN commentary_ref r ON r.entry_id = w.entry_id
+               WHERE r.start_canon = ? AND v.edition_id = 'WLC'""", S.canon_verse_id("JON", 1, 17))
+    check(heb == [(2, 1)], f"Jonah 1:17 language notes link to WLC Jonah 2:1 (got {heb})")
+    say(f"- (info) unfoldingWord notes marked as translation technique (hidden by default): "
+        f"{q('SELECT COUNT(*) FROM commentary_entry WHERE minor = 1')[0][0]}")
+
+    say("\n## 10. Search")
     for term in ("beginning", "covenant", "mercy"):
         n = q("SELECT COUNT(*) FROM verse_fts f JOIN verse v ON v.id=f.rowid WHERE verse_fts MATCH ? "
               "AND v.edition_id='WEB'", term)[0][0]

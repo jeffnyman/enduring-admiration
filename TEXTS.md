@@ -158,6 +158,68 @@ Some mappings are not one-to-one. One edition's verse may be **merged** into, or
 
 Catholic and Orthodox Bibles read Daniel and Esther with their Greek material in place: the Prayer of Azariah and the Song of the Three inside Daniel 3, Susanna and Bel as chapters 13–14, and Esther's additions where they fall in the story, lettered A–F. Choosing the Catholic or Orthodox canon in the book picker shows those books in that order, while the Protestant setting shows the Hebrew order with the additions as separate books.
 
+## The commentaries
+
+The ¶ button beside a verse opens four commentaries. They were chosen to cover a spectrum: they come from different centuries, traditions and purposes, and they often disagree. That is deliberate. A student learns more from hearing several careful voices and asking why they differ than from one voice that sounds final. Each commentary's tab says where it comes from, and the Sources page has the full attribution.
+
+### The four voices
+
+**Tyndale Open Study Notes** (Tyndale House Publishers, 2022; CC BY-SA). *A modern evangelical Protestant study Bible.*
+
+- **What it is:** notes for general readers on nearly every verse and passage, plus book introductions, about 300 theme articles and about 120 profiles of people.
+- **Its strengths:** it is the most readable of the four, and it is good on historical background and on how a passage fits the whole Bible.
+- **What to watch:** it reads the Bible from within one theological tradition, so where Christians disagree (on creation, the sacraments or the end times, for example) it gives one view, not a survey. The phrases it quotes come from the New Living Translation, which is why they won't always match the WEB's wording.
+
+**Translation Notes** (unfoldingWord, release v92; CC BY-SA). *Evangelical, and written for Bible translators.*
+
+- **What it is:** about 92,000 short notes on the Hebrew and Greek words themselves: idioms, figures of speech, implied meaning, grammar. Each note quotes the original words it explains, and the reader links them to those words in the Hebrew or Greek column. Hover over a note to see its words highlighted, or click a Hebrew or Greek word to see the notes about it.
+- **Its strengths:** it is the closest of the four to the original languages. For a student it is a guided tour of how Hebrew and Greek actually work: why a phrase is a metaphor, what a passive verb implies, what an idiom meant.
+- **What to watch:**
+  - A third of the notes are about translation technique (how to handle passive verbs, pronouns or word order in another language). The reader hides those unless you ask for them.
+  - The notes' "alternate translations" are suggestions for translators, not claims about what the text must mean.
+  - Their Greek is based on a slightly different edition from the SBLGNT, so about 1,200 of the 35,000 Greek notes point to only some of their words, or just to the verse.
+
+**Catena Aurea** (compiled by Thomas Aquinas, c. 1263; English translation under J. H. Newman, 1841–45; public domain). *The Church Fathers.*
+
+- **What it is:** a "golden chain" of comments from the Fathers (Chrysostom, Augustine, Jerome, Gregory the Great, Hilary and many others), linked passage by passage through the four Gospels. Each comment names its Father and work, so you can see who said what.
+- **Its strengths:** it is the oldest voice here, and the one Catholic and Orthodox readers share with the early church (and Protestants inherit too). It reads Scripture devotionally, theologically and often allegorically, not historically. That is its strength, not a defect: it shows how the church read the Gospels for its first thousand years.
+- **What to watch:**
+  - It covers the Gospels only.
+  - Each section opens with the verse in Newman's translation of the Latin Vulgate, so the wording differs from the WEB.
+  - Its comments are extracts chosen by Aquinas, not complete works. To read a Father in full, follow the reference he gives.
+
+**Keil & Delitzsch, *Biblical Commentary on the Old Testament*** (German 1860s–70s, English translation published by T&T Clark; public domain). *Conservative German Lutheran scholarship of the 19th century.*
+
+- **What it is:** a detailed commentary on the Hebrew text of the whole Old Testament: grammar, word meanings, history and theology, written by two of the most learned Hebraists of their day. It was written in conscious argument with the historical criticism of its time. It defends the traditional authorship and unity of the books, so you'll often see it answering critics.
+- **Its strengths:** for depth on the Hebrew it is still valuable, and it is the most technical of the four.
+- **What to watch:**
+  - **It is dated.** It predates modern archaeology, the Ugaritic texts (1929) and the Dead Sea Scrolls (1947). Its comparative philology is that of its century, and modern commentaries often disagree with it.
+  - **Its Hebrew is unreliable in this edition.** The digital transcription has no vowel points and has systematic letter errors (ת typed as ח, for example). Read its Hebrew as a pointer and check the word in the Hebrew column.
+  - **Introductions live with the opening comment.** The module keeps each book's introduction together with its comment on the opening verses, so the first entry in each book is long.
+
+### How they differ, at a glance
+
+| | Tyndale | Translation Notes | Catena Aurea | Keil & Delitzsch |
+|---|---|---|---|---|
+| Written | 2022 | current release 2026 | c. 1263 (Fathers: 2nd–8th c.) | 1860s–70s |
+| Tradition | evangelical Protestant | evangelical | patristic, compiled by a Catholic | Lutheran |
+| Asks mainly | what does it mean, in its world and the whole Bible? | what do these Hebrew/Greek words do? | how did the Fathers read this? | what does the Hebrew say, and is the tradition right? |
+| Covers | all 66 books | 61 books (not yet 1–2 Chronicles, Isaiah, Jeremiah, Ezekiel) | the Gospels | the Old Testament |
+| Deuterocanon | no | no | no | no |
+
+None of the four covers the deuterocanonical books, which is a real gap for Catholic and Orthodox readers. The only open commentary on them we found, Wace's *Speaker's Commentary* on the Apocrypha (1888), survives only as rough scans; it is on the list for later.
+
+### Reading them well
+
+- **Notice what each one is answering.** A disagreement is often a difference in question, not in answer. The Fathers asking what a parable teaches about Christ and Keil asking what a Hebrew verb tense implies are not contradicting each other.
+- **Check claims against the text.** When a note makes a point about a Hebrew or Greek word, click the word: the parsing and lexicons are one click away.
+- **Notice the date.** A 19th-century claim about history or language may have been overtaken. A 4th-century reading may be more about theology than history, and is meant to be.
+- **The commentaries are not Scripture,** and the app keeps them visibly separate from the text, in the panel.
+
+### How they are attached to verses
+
+All four number verses the English way, which matches the reader's Standard numbering almost everywhere. Notes are attached to the Standard verses they cover. A note on a passage (Tyndale often comments on a whole section, and Keil & Delitzsch on several verses at once) appears on every verse in it. Translation Notes are also tied to the Hebrew or Greek words they quote. Those links were made by matching the quoted words against the WLC and SBLGNT: 100% of the Hebrew notes and 99.6% of the Greek notes found their words. Where a Greek note's words aren't in the SBLGNT, the note stays on its verse. Where Hebrew numbering differs (English Jonah 1:17 is Hebrew Jonah 2:1), the link still points to the right Hebrew words.
+
 ## A checklist before you rely on something
 
 The app is meant for serious reading, and it tries hard to say where its data is weaker. In short:
@@ -174,6 +236,8 @@ The app is meant for serious reading, and it tries hard to say where its data is
 | Hebrew–Greek equivalents | statistics over aligned verses | a lead to follow up |
 | Cross-references (OpenBible.info) | crowd-sourced, ranked by votes | a starting point |
 | Lexicons | public-domain classics, 1889–1940 | valuable, dated — compare with a modern lexicon |
+| Commentaries | four traditions, 13th–21st century | voices to weigh, not authorities; Keil & Delitzsch's Hebrew is unreliable in this edition |
+| Language notes linked to words | quotes matched to the WLC/SBLGNT by the build | high for Hebrew; a few Greek notes only partly match |
 
 ## Further reading
 

@@ -2,10 +2,10 @@
 
 import { toggleBookmark, useAnnotations } from "@/lib/annotations";
 
-type Props = { canonId: number; refLabel: string; href: string; xrefs: number };
+type Props = { canonId: number; refLabel: string; href: string; xrefs: number; comments: number };
 
-/** Bookmark, note and cross-reference buttons under a verse number. */
-export function VerseTools({ canonId, refLabel, href, xrefs }: Props) {
+/** Bookmark, note, cross-reference and commentary buttons under a verse number. */
+export function VerseTools({ canonId, refLabel, href, xrefs, comments }: Props) {
   const a = useAnnotations()[canonId];
   const target = { id: canonId, ref: refLabel, href };
   const btn = "rounded px-0.5 leading-none hover:bg-stone-200 dark:hover:bg-stone-800";
@@ -32,6 +32,12 @@ export function VerseTools({ canonId, refLabel, href, xrefs }: Props) {
       >
         ✎
       </button>
+      {comments > 0 && (
+        <button type="button" className={btn} aria-label={`Commentary on ${refLabel}`} title="Commentary (c)"
+          data-commentary={canonId}>
+          ¶
+        </button>
+      )}
       {xrefs > 0 && (
         <button type="button" className={btn} aria-label={`${xrefs} cross-references for ${refLabel}`} title="Cross-references (x)"
           data-xref={canonId}>

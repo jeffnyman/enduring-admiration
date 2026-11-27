@@ -1,4 +1,5 @@
 import "server-only";
+import { countCommentary, getWordNotes, type CommentaryEntry } from "./commentary";
 import { db } from "./db";
 import { normWord } from "./normalize";
 
@@ -71,6 +72,8 @@ export type CanonRow = {
   anchor: string;
   /** number of cross-references from this verse */
   xrefs: number;
+  /** number of commentary entries covering this verse */
+  comments: number;
   editions: Record<string, EditionVerse[]>;
 };
 
@@ -221,9 +224,11 @@ export function getChapter(bookId: string, chapter: number, editions: string[]):
         .all(...ids) as { id: number; n: number }[]
     ).map((r) => [r.id, r.n]),
   );
+  const comments = countCommentary(ids);
   return canon.map((c) => ({
     canonId: c.id,
     xrefs: xref.get(c.id) ?? 0,
+    comments: comments.get(c.id) ?? 0,
     canonBook: c.canonBook,
     canonChapter: c.canonChapter,
     verse: c.verse,
@@ -306,6 +311,8 @@ export type WordDetails = {
   edition: Edition;
   ref: string;
   morphemes: Morpheme[];
+  /** language notes (unfoldingWord) about this word */
+  notes: CommentaryEntry[];
 };
 
 export function getWord(tokenId: number): WordDetails | null {
@@ -351,6 +358,7 @@ export function getWord(tokenId: number): WordDetails | null {
     tagStatus: t.tagStatus,
     variant: t.variant,
     ocrOriginal: t.ocrOriginal,
+    notes: getWordNotes(tokenId),
     edition,
     ref: `${t.bookName} ${t.chapter}:${t.verse}${t.part}${t.sourceRef ? ` (${t.sourceRef})` : ""}`,
     morphemes: morphemes.map((m) => {
@@ -370,7 +378,7 @@ export function getWord(tokenId: number): WordDetails | null {
 export type CrossRef = { href: string; label: string; text: string; votes: number | null; source: string };
 
 /** Readable reference for a Standard verse (or range), e.g. "Romans 1:19-20". */
-function refLabel(startId: number, endId: number): string {
+export function refLabel(startId: number, endId: number): string {
   const d = db();
   const a = d.prepare(
     "SELECT b.name, cv.chapter, cv.verse FROM canon_verse cv JOIN book b ON b.id = cv.book_id WHERE cv.id = ?",

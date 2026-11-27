@@ -7,6 +7,7 @@ import { ReaderKeys } from "@/components/ReaderKeys";
 import { StudyPanel } from "@/components/StudyPanel";
 import { VerseNote, VerseTools } from "@/components/VerseTools";
 import { defaultColumns, getBook, getBooks, getChapter, getEditions, neighbours } from "@/lib/bible";
+import { hasBookIntro } from "@/lib/commentary";
 
 const ALL_COLUMNS = ["WEB", "WLC", "LXX-SWETE", "LXX-SWETE-OG", "LXX-BRENTON", "SBLGNT"];
 // the Old Greek column only exists for Daniel and its additions
@@ -104,6 +105,11 @@ async function Chapter({
           <h1 className="text-2xl font-semibold tracking-tight">
             {title} {chapter}
           </h1>
+          {hasBookIntro(bookId) && (
+            <Link href={`/intro/${bookId}`} className="text-xs text-amber-800 underline dark:text-amber-300">
+              Introduction
+            </Link>
+          )}
           {next && (
             <Link href={`/read/${next.book}/${next.chapter}${qs}`} className="rounded px-2 py-1 hover:bg-stone-200 dark:hover:bg-stone-800" aria-label="Next chapter">
               →
@@ -190,6 +196,7 @@ async function Chapter({
               refLabel={`${title} ${chapter}:${!layout && r.verse === 0 ? "title" : r.label}`}
               href={`/read/${bookId}/${chapter}#${r.anchor}`}
               xrefs={r.xrefs}
+              comments={r.comments}
             />
             </div>
             {columns.map((c) => (

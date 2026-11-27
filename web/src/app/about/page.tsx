@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { getEditions, getSources } from "@/lib/bible";
+import { getCommentaries } from "@/lib/commentary";
 
 // Static: the database never changes at runtime, so this page is prerendered.
 export default function About() {
   const sources = getSources();
   const editions = getEditions();
+  const commentaries = getCommentaries();
   return (
     <div className="max-w-4xl space-y-8">
       <section>
@@ -24,6 +27,27 @@ export default function About() {
             </li>
           ))}
         </ul>
+      </section>
+      <section id="commentaries">
+        <h2 className="mb-2 text-lg font-semibold">Commentaries</h2>
+        <p className="mb-3 text-sm text-stone-600 dark:text-stone-400">
+          The ¶ button beside a verse opens what these say about it. They come from different centuries and traditions on
+          purpose, so read them as voices to weigh, not as one authority. <code>TEXTS.md</code> explains how they differ.
+        </p>
+        <ul className="space-y-3 text-sm">
+          {commentaries.map((c) => (
+            <li key={c.id}>
+              <span className="font-semibold">{c.title}</span>
+              {c.author && <span className="text-stone-500"> · {c.author}</span>}
+              <span className="text-stone-500"> · {c.written}</span>
+              <div className="text-xs italic text-stone-500">{c.tradition}</div>
+              <p className="text-stone-600 dark:text-stone-400">{c.description}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-stone-500">
+          Book introductions are on each book&apos;s <Link href="/intro/GEN" className="underline">introduction page</Link>.
+        </p>
       </section>
       <section>
         <h2 className="mb-2 text-lg font-semibold">Data sources</h2>

@@ -10,6 +10,7 @@ const KEYS: [string, string][] = [
   ["b", "bookmark the current verse"],
   ["e", "write a note on the current verse"],
   ["x", "cross-references for the current verse"],
+  ["c", "commentary on the current verse"],
   ["Esc", "close the panel"],
   ["?", "this list"],
 ];
@@ -66,6 +67,9 @@ export function ReaderKeys({ prevHref, nextHref, glossHref }: { prevHref?: strin
           break;
         case "x":
           press("[data-xref]");
+          break;
+        case "c":
+          press("[data-commentary]");
           break;
         case "?":
           setHelp((h) => !h);

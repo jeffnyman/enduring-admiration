@@ -212,6 +212,37 @@ try {
   await page.waitForURL(/\/read\/.*#[A-Z0-9]{3}-\d+-\d+$/);
   check(true, "a cross-reference opens its verse");
 
+  console.log("Commentaries");
+  await page.goto(`${BASE}/read/GEN/1`);
+  await page.locator('[id="GEN-1-1"] [data-commentary]').click();
+  const tabs = drawer.getByRole("tab");
+  await tabs.first().waitFor({ timeout: 10000 });
+  const tabNames = (await tabs.allInnerTexts()).join(" | ");
+  check(["Tyndale", "Language notes", "Keil"].every((t) => tabNames.includes(t)), `Genesis 1:1 has Tyndale, language notes and Keil & Delitzsch (${tabNames})`);
+  check((await present(drawer.locator(".commentary-body p"))) > 0, "commentary text is shown");
+  check((await drawer.locator(".commentary-body script, .commentary-body [onclick], .commentary-body iframe").count()) === 0,
+    "commentary HTML has no scripts or handlers");
+  await drawer.getByRole("tab", { name: /Language notes/ }).click();
+  const noteWithWords = drawer.locator("[data-words]").first();
+  await noteWithWords.hover();
+  check((await present(page.locator('[id="GEN-1-1"] .is-noted'))) > 0, "hovering a language note highlights its Hebrew words");
+  const technique = drawer.getByRole("button", { name: /translation technique/ });
+  check((await present(technique)) === 1, "translation-technique notes are hidden behind a toggle");
+  const before = await drawer.locator("[data-entry]").count();
+  await technique.click();
+  check((await drawer.locator("[data-entry]").count()) > before, "the toggle shows them");
+  await page.goto(`${BASE}/read/MAT/1`);
+  await page.locator('[id="MAT-1-2"] [data-commentary]').click();
+  await drawer.getByRole("tab", { name: /Catena/ }).click();
+  check((await present(drawer.locator(".commentary-body strong"))) > 0, "Matthew 1:2 has the Catena Aurea, naming its Fathers");
+  await page.goto(`${BASE}/read/GEN/1`);
+  await page.locator('[id="GEN-1-1"] [data-tok]').first().click();
+  check((await present(drawer.getByText("Language notes on this word"))) === 1, "a word's details include language notes on it");
+  await page.goto(`${BASE}/intro/RUT`);
+  check((await present(page.getByRole("heading", { name: "Tyndale Open Study Notes" }))) === 1, "Ruth's introduction page shows Tyndale's introduction");
+  await page.goto(`${BASE}/about`);
+  check((await present(page.locator("#commentaries li"))) >= 4, "Sources page describes the commentaries");
+
   console.log("Keyboard");
   await page.goto(`${BASE}/read/GEN/1`);
   await page.locator('html[data-keys="ready"]').waitFor({ state: "attached" });
@@ -233,6 +264,9 @@ try {
   await page.keyboard.press("x");
   await drawer.locator("ol li a").first().waitFor({ timeout: 10000 });
   check(await drawer.isVisible(), "x opens the verse's cross-references");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("c");
+  check((await present(drawer.getByRole("tab"))) > 0, "c opens the verse's commentary");
   await page.keyboard.press("Escape");
   await page.keyboard.press("?");
   check(await page.getByRole("dialog", { name: "Keyboard shortcuts" }).isVisible(), "? lists the shortcuts");
@@ -285,6 +319,7 @@ try {
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
   check((await status("/api/token/abc")) === 400, "bad token id -> 400");
   check((await status("/api/token/999999999")) === 404, "missing token -> 404");
+  check((await status("/api/commentary/abc")) === 400, "bad commentary id -> 400");
 
   console.log("Mobile");
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });

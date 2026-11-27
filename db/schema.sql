@@ -146,6 +146,52 @@ CREATE TABLE layout_verse (
 CREATE INDEX layout_verse_chapter ON layout_verse (book_id, chapter, seq);
 CREATE INDEX layout_verse_canon   ON layout_verse (canon_verse_id);
 
+-- Commentaries (Tyndale Open Study Notes, unfoldingWord Translation Notes, Catena Aurea, Keil &
+-- Delitzsch). Bodies are safe HTML made by pipeline/bibleingest/commentary.py (a fixed set of
+-- tags, all text escaped). An entry covers one or more Standard ranges (commentary_ref); notes on
+-- particular Hebrew/Greek words are linked to those tokens (commentary_word).
+CREATE TABLE commentary (
+  id           TEXT PRIMARY KEY,              -- 'tyndale', 'uw', 'catena', 'kd'
+  source_id    TEXT NOT NULL REFERENCES source(id),
+  title        TEXT NOT NULL,
+  short_title  TEXT NOT NULL,
+  author       TEXT,
+  written      TEXT NOT NULL,                 -- when it was written / translated
+  tradition    TEXT NOT NULL,                 -- the theological tradition it comes from
+  description  TEXT NOT NULL,                 -- what it is for and its limits, for the reader
+  sort         INTEGER NOT NULL
+);
+
+CREATE TABLE commentary_entry (
+  id            INTEGER PRIMARY KEY,
+  commentary_id TEXT NOT NULL REFERENCES commentary(id),
+  kind          TEXT NOT NULL CHECK (kind IN ('note','intro','article','profile')),
+  book_id       TEXT NOT NULL REFERENCES book(id),
+  ref_label     TEXT NOT NULL,                -- the passage in the source's numbering, e.g. 'Genesis 1:1–2:3'
+  title         TEXT,
+  label         TEXT,                         -- unfoldingWord note type, Catena Fathers, Tyndale item name
+  quote         TEXT,                         -- the Hebrew/Greek words the note is about (unfoldingWord)
+  minor         INTEGER NOT NULL DEFAULT 0,   -- 1 = about translation technique; hidden unless asked for
+  body          TEXT NOT NULL,                -- safe HTML
+  sort          INTEGER NOT NULL
+);
+CREATE INDEX commentary_entry_book ON commentary_entry (book_id, kind);
+
+CREATE TABLE commentary_ref (
+  start_canon INTEGER NOT NULL REFERENCES canon_verse(id),
+  end_canon   INTEGER NOT NULL REFERENCES canon_verse(id),
+  entry_id    INTEGER NOT NULL REFERENCES commentary_entry(id),
+  PRIMARY KEY (start_canon, end_canon, entry_id)
+) WITHOUT ROWID;
+CREATE INDEX commentary_ref_entry ON commentary_ref (entry_id);
+
+CREATE TABLE commentary_word (
+  token_id INTEGER NOT NULL REFERENCES token(id),
+  entry_id INTEGER NOT NULL REFERENCES commentary_entry(id),
+  PRIMARY KEY (token_id, entry_id)
+) WITHOUT ROWID;
+CREATE INDEX commentary_word_entry ON commentary_word (entry_id);
+
 -- Cross-references between Standard verses. OpenBible.info (CC BY, ranked by user votes; only
 -- references with votes >= 0) and the WEB's own cross-reference notes (incl. the deuterocanon).
 CREATE TABLE cross_ref (

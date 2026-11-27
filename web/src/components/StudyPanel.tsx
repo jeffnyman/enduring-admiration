@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { setNote, useAnnotations } from "@/lib/annotations";
 import type { CrossRef, LexEntry, WordDetails } from "@/lib/bible";
+import { CommentaryEntryView, CommentaryView, type CommentaryData } from "./CommentaryView";
 
 const LEX_NOTE: Record<string, string> = {
   bdb: "Brown-Driver-Briggs",
@@ -57,7 +58,7 @@ function NoteEditor({ target }: { target: NoteTarget }) {
   return (
     <div className="space-y-2">
       <label htmlFor="note-text" className="text-xs text-stone-500">
-        Saved in this browser as you type. Export from Bookmarks to keep a copy.
+        Saved as you type. The Bookmarks page shows where notes are kept and can export them.
       </label>
       <textarea
         id="note-text"
@@ -78,12 +79,14 @@ function NoteEditor({ target }: { target: NoteTarget }) {
 
 /**
  * Side panel for the reader (a bottom sheet on phones). One delegated listener opens it for
- * a word ([data-tok]), a verse's cross-references ([data-xref]) or a verse note ([data-note]).
+ * a word ([data-tok]), a verse's cross-references ([data-xref]), its commentaries
+ * ([data-commentary]) or a verse note ([data-note]).
  */
 export function StudyPanel({ children }: { children: React.ReactNode }) {
   const [word, setWord] = useState<WordDetails | null>(null);
   const [xref, setXref] = useState<XrefData | null>(null);
   const [note, setNoteTarget] = useState<NoteTarget | null>(null);
+  const [comm, setComm] = useState<CommentaryData | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const selected = useRef<HTMLElement | null>(null);
 
@@ -94,6 +97,7 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
     setWord(null);
     setXref(null);
     setNoteTarget(null);
+    setComm(null);
     setState("idle");
   }, []);
 
@@ -103,6 +107,7 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
     setWord(null);
     setXref(null);
     setNoteTarget(null);
+    setComm(null);
     if (el.dataset.note) {
       setNoteTarget({ id: el.dataset.note, ref: el.dataset.ref ?? "", href: el.dataset.href ?? "" });
       setState("idle");
@@ -111,9 +116,15 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
     if (el.dataset.tok) el.setAttribute("aria-pressed", "true");
     setState("loading");
     try {
-      const res = await fetch(el.dataset.tok ? `/api/token/${el.dataset.tok}` : `/api/xrefs/${el.dataset.xref}`);
+      const url = el.dataset.tok
+        ? `/api/token/${el.dataset.tok}`
+        : el.dataset.commentary
+          ? `/api/commentary/${el.dataset.commentary}`
+          : `/api/xrefs/${el.dataset.xref}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(String(res.status));
       if (el.dataset.tok) setWord((await res.json()) as WordDetails);
+      else if (el.dataset.commentary) setComm((await res.json()) as CommentaryData);
       else setXref((await res.json()) as XrefData);
       setState("idle");
     } catch {
@@ -128,12 +139,12 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
   }, [close]);
 
   const pick = (e: React.SyntheticEvent) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tok],[data-xref],[data-note]");
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tok],[data-xref],[data-note],[data-commentary]");
     if (el) void open(el);
   };
 
-  const showing = state !== "idle" || word || xref || note;
-  const title = word ? "Word details" : xref ? "Cross-references" : note ? "Note" : "Details";
+  const showing = state !== "idle" || word || xref || note || comm;
+  const title = word ? "Word details" : xref ? "Cross-references" : note ? "Note" : comm ? "Commentary" : "Details";
   const machine = word?.edition.id.startsWith("LXX-SWETE") || word?.tagStatus === "inferred";
 
   return (
@@ -168,6 +179,12 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
                   </div>
                 </>
               )}
+              {comm && (
+                <>
+                  <div className="text-lg font-semibold">Commentary</div>
+                  <div className="text-xs text-stone-500">{comm.label}</div>
+                </>
+              )}
               {note && (
                 <>
                   <div className="text-lg font-semibold">Note</div>
@@ -196,7 +213,7 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
                 </>
               )}
               {state === "loading" && <div className="text-sm text-stone-500">Loading…</div>}
-              {state === "error" && <div className="text-sm text-red-700">Could not load this word.</div>}
+              {state === "error" && <div className="text-sm text-red-700">Could not load this.</div>}
             </div>
             <button onClick={close} className="rounded px-2 py-1 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Close">
               ✕
@@ -220,6 +237,7 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
               </li>
             </ol>
           )}
+          {comm && <CommentaryView key={comm.label} data={comm} />}
           {note && (
             <div className="flex-1 overflow-y-auto p-4">
               <NoteEditor target={note} />
@@ -240,6 +258,21 @@ export function StudyPanel({ children }: { children: React.ReactNode }) {
                   {word.tagStatus === "inferred" ? ", copied from the same form elsewhere in the book" : ""}. Check
                   doubtful forms.
                 </p>
+              )}
+              {word.notes.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Language notes on this word
+                  </h3>
+                  <ul className="space-y-2">
+                    {word.notes.filter((n) => !n.minor).concat(word.notes.filter((n) => n.minor)).slice(0, 6).map((n) => (
+                      <CommentaryEntryView key={n.id} e={n} commentary="uw" />
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-[0.65rem] text-stone-400">
+                    Translation Notes; the original work by unfoldingWord is available from unfoldingword.org/utn (CC BY-SA 4.0).
+                  </p>
+                </section>
               )}
               {word.morphemes.map((m) => (
                 <section key={m.id}>

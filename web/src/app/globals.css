@@ -113,3 +113,47 @@ ruby.gl rt.gl-lex {
 .verse-row:focus {
   outline: none;
 }
+
+/* Commentary bodies: safe HTML from the pipeline (p, h4, ul/li, strong, em, a, sup/sub, span.sc/.note/.heb) */
+.commentary-body {
+  line-height: 1.55;
+}
+.commentary-body p + p,
+.commentary-body ul,
+.commentary-body h4 {
+  margin-top: 0.5em;
+}
+.commentary-body h4 {
+  font-weight: 600;
+}
+.commentary-body ul {
+  list-style: disc;
+  padding-inline-start: 1.25em;
+}
+.commentary-body a {
+  color: var(--color-amber-800);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  .commentary-body a {
+    color: var(--color-amber-300);
+  }
+}
+.commentary-body .sc {
+  font-variant: small-caps;
+}
+.commentary-body .note {
+  font-size: 0.85em;
+  color: var(--color-stone-500);
+}
+.commentary-body .heb {
+  font-family: var(--font-hebrew, "SBL Hebrew", "Noto Serif Hebrew Variable", serif);
+}
+
+/* words a language note is about, while the note is hovered or focused */
+.is-noted {
+  background: color-mix(in srgb, var(--color-sky-400) 35%, transparent);
+  border-radius: 0.2em;
+  box-shadow: 0 0 0 1px var(--color-sky-400);
+}
