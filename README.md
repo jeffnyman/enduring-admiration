@@ -14,6 +14,7 @@ A local-first Bible: the World English Bible beside the Hebrew (WLC), the Septua
 - **Brenton.** Sir Lancelot Brenton's 1844 edition of the Septuagint, Greek text largely following Codex Vaticanus. It has no word-level data here; we use it to cross-check Swete and as an optional column.
 - **SBLGNT — SBL Greek New Testament.** A critical edition of the Greek New Testament published in 2010 by the Society of Biblical Literature, edited by Michael W. Holmes.
 - **TAGNT — Translators Amalgamated Greek New Testament.** STEPBible's word-by-word tagging of the Greek NT (lemma, Strong's number, parsing, English gloss), which we attach to the SBLGNT words.
+- **TAHOT — Translators Amalgamated Hebrew Old Testament.** STEPBible's word-by-word tagging of the Hebrew Bible, the Hebrew counterpart of TAGNT. We use its in-context English glosses and transliterations for the gloss line and word drawer.
 - **Theodotion / Old Greek.** Daniel survives in two Greek versions. The *Old Greek* is the original Septuagint translation; *Theodotion's* later version replaced it in church use. We use Theodotion for Daniel, Susanna and Bel.
 - **Deuterocanon / Apocrypha.** Books found in the Septuagint but not the Hebrew Bible, such as Tobit, Judith, the Maccabees and Sirach. Catholics and Orthodox count many of them as Scripture; Protestants generally do not. The book picker can filter by canon.
 
@@ -25,6 +26,8 @@ A local-first Bible: the World English Bible beside the Hebrew (WLC), the Septua
 - **BDB.** The Brown–Driver–Briggs *Hebrew and English Lexicon* (1906), the classic Hebrew dictionary. The digital version here is still in progress; many entries are outlines.
 - **Thayer's.** J. H. Thayer's *Greek-English Lexicon of the New Testament* (1889).
 - **LSJ.** The Liddell–Scott–Jones *Greek–English Lexicon*, the standard dictionary of ancient Greek. It covers the Septuagint vocabulary that New Testament lexicons don't.
+- **Gloss line.** The "Glosses" switch in the reader puts a short English gloss under each Hebrew and Greek word. Hebrew (TAHOT) and New Testament (TAGNT) glosses fit the word's context; Septuagint glosses, shown in italics, are dictionary glosses from LSJ, because no in-context source exists.
+- **Septuagint equivalents.** For a Hebrew word, the Greek words the Septuagint most often uses for it (and for a Greek word, the Hebrew words it usually renders), with how often each Greek word appears in the New Testament. They are measured from verses where both words occur in the aligned Hebrew and Greek texts (a Dice score), so they are statistical, not a word-by-word alignment.
 - **Ketiv / Qere.** In some places the Hebrew text is written one way (*ketiv*, "what is written") but traditionally read another (*qere*, "what is read"). The reader shows both.
 - **Morpheus.** A program from the Perseus Project that analyzes Greek word forms automatically.
 
