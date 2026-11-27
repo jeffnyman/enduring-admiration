@@ -32,6 +32,12 @@ function browserPath() {
 }
 
 let failures = 0;
+/** Count matches once the first one has appeared: content streams in, and client-side state
+ *  (such as bookmarks in localStorage) renders after hydration, so counting at once can race. */
+async function present(locator, timeout = 10000) {
+  await locator.first().waitFor({ timeout }).catch(() => {});
+  return locator.count();
+}
 function check(ok, msg) {
   console.log(`  [${ok ? "PASS" : "FAIL"}] ${msg}`);
   if (!ok) failures++;
@@ -63,8 +69,8 @@ try {
   const drawer = page.locator('aside[role="dialog"]');
   await drawer.locator("section").first().waitFor({ timeout: 10000 });
   check(await drawer.isVisible(), "clicking a Hebrew word opens the drawer");
-  check((await drawer.getByText("Brown-Driver-Briggs").count()) > 0, "drawer shows a BDB entry");
-  check((await drawer.locator('a[href^="/strongs/H"]').count()) > 0, "drawer links to the Strong's page");
+  check((await present(drawer.getByText("Brown-Driver-Briggs"))) > 0, "drawer shows a BDB entry");
+  check((await present(drawer.locator('a[href^="/strongs/H"]'))) > 0, "drawer links to the Strong's page");
   check((await drawer.locator("p.text-sm").first().innerText()).length > 10, "parsing is spelled out");
   await page.keyboard.press("Escape");
   check(!(await drawer.isVisible().catch(() => false)), "Escape closes the drawer");
@@ -72,7 +78,7 @@ try {
   await page.goto(`${BASE}/read/JHN/1`);
   await page.locator('#JHN-1-1 [lang="grc"] [data-tok]').first().click();
   await drawer.locator("section").first().waitFor({ timeout: 10000 });
-  check((await drawer.getByText("Thayer").count()) > 0, "clicking a Greek NT word shows Thayer's");
+  check((await present(drawer.getByText("Thayer"))) > 0, "clicking a Greek NT word shows Thayer's");
 
   console.log("Navigation");
   await page.goto(`${BASE}/read/GEN/1`);
@@ -98,7 +104,7 @@ try {
   console.log("Search");
   await page.goto(`${BASE}/search?q=beginning`);
   const hits = page.locator("ol li a");
-  check((await hits.count()) > 0, `English search returns results (${await hits.count()})`);
+  check((await present(hits)) > 0, `English search returns results (${await hits.count()})`);
   await hits.first().click();
   await page.waitForURL(/\/read\/.*#[A-Z0-9]{3}-\d+-\d+$/);
   const hash = new URL(page.url()).hash.slice(1);
@@ -115,7 +121,7 @@ try {
   await page.locator("#q").fill("H7225");
   await page.locator("#q").press("Enter");
   await page.waitForURL(/\/strongs\/H7225/);
-  check((await page.locator('section a[href^="/read/"]').count()) > 0, "Strong's number search lists occurrences");
+  check((await present(page.locator('section a[href^="/read/"]'))) > 0, "Strong's number search lists occurrences");
 
   console.log("Greek Daniel and Esther (Catholic/Orthodox order)");
   await page.goto(`${BASE}/read/GEN/1`);
@@ -136,7 +142,7 @@ try {
     "Daniel 3:24 (Greek numbering) is Greek-only");
   check(/[\u05D0-\u05EA]/.test(await heb("DAG-3-91")), "Daniel 3:91 lines up with the Hebrew (Standard 3:24)");
   const ogChip = page.getByRole("link", { name: "Old Greek Daniel" });
-  check((await ogChip.count()) === 1, "Daniel offers the Old Greek column");
+  check((await present(ogChip)) === 1, "Daniel offers the Old Greek column");
   await ogChip.click();
   await page.waitForURL(/cols=.*LXX-SWETE-OG/);
   await page.locator('[id="DAG-3-1"]').waitFor();
@@ -144,7 +150,7 @@ try {
   await page.goto(`${BASE}/read/GEN/1`);
   check((await page.getByRole("link", { name: "Old Greek Daniel" }).count()) === 0, "other books don't offer it");
   await page.goto(`${BASE}/read/DAG/13`);
-  check((await page.locator(".verse-row").count()) === 64, "Daniel 13 is Susanna (64 verses)");
+  check((await present(page.locator(".verse-row"))) === 64, "Daniel 13 is Susanna (64 verses)");
 
   await page.goto(`${BASE}/read/ESG/1`);
   check((await page.locator(".verse-row").first().getAttribute("id")) === "ESG-1-A1", "Esther opens with Addition A");
@@ -178,27 +184,27 @@ try {
   const prefixed = await firstHeb.innerText();
   await page.locator('[id="GEN-1-1"] [lang="hbo"] [data-tok]').nth(2).click();
   await drawer.locator("section").first().waitFor({ timeout: 10000 });
-  check((await drawer.getByText("In the Septuagint usually").count()) > 0, "Hebrew word shows its Septuagint equivalents");
-  check((await drawer.locator('a[href^="/strongs/G"]').count()) > 0, "equivalents link to Greek concordance pages");
+  check((await present(drawer.getByText("In the Septuagint usually"))) > 0, "Hebrew word shows its Septuagint equivalents");
+  check((await present(drawer.locator('a[href^="/strongs/G"]'))) > 0, "equivalents link to Greek concordance pages");
   await page.keyboard.press("Escape");
   await page.locator('[id="GEN-1-1"] [lang="grc"] [data-tok]').nth(3).click();
   await drawer.locator("section").first().waitFor({ timeout: 10000 });
   const lxxLemma = (await drawer.locator("section span.scripture-grc").first().innerText()).trim();
-  check((await drawer.getByText("Usually renders (Hebrew)").count()) > 0, "Greek word shows its Hebrew equivalents");
+  check((await present(drawer.getByText("Usually renders (Hebrew)"))) > 0, "Greek word shows its Hebrew equivalents");
   await page.keyboard.press("Escape");
 
   await page.goto(`${BASE}/search?q=${encodeURIComponent(prefixed)}`);
-  check((await page.locator('section[aria-label="Dictionary words"] a[href^="/strongs/H"]').count()) > 0,
+  check((await present(page.locator('section[aria-label="Dictionary words"] a[href^="/strongs/H"]'))) > 0,
     "searching a prefixed Hebrew word finds its dictionary word");
   await page.goto(`${BASE}/strongs/H0430`);
-  check((await page.getByText("In the Septuagint usually").count()) > 0, "concordance page lists Septuagint equivalents");
+  check((await present(page.getByText("In the Septuagint usually"))) > 0, "concordance page lists Septuagint equivalents");
   const lemmaPage = await page.request.get(`${BASE}/lemma/${encodeURIComponent(lxxLemma)}`);
   check(lemmaPage.status() === 200 && (await lemmaPage.text()).includes("occurrence"), `lemma concordance page works (${lxxLemma})`);
 
   console.log("Cross-references");
   await page.goto(`${BASE}/read/GEN/1`);
   const xbtn = page.locator('[id="GEN-1-1"] [data-xref]');
-  check((await xbtn.count()) === 1, "verse shows a cross-reference button");
+  check((await present(xbtn)) === 1, "verse shows a cross-reference button");
   await xbtn.click();
   await drawer.locator("ol li a").first().waitFor({ timeout: 10000 });
   check((await drawer.locator('ol li a[href^="/read/"]').count()) > 3, "cross-references list linked verses with text");
@@ -223,7 +229,7 @@ try {
   await textarea.waitFor();
   await textarea.fill("smoke-test note");
   await page.keyboard.press("Escape");
-  check((await page.locator('[id="GEN-1-1"]').getByText("smoke-test note").count()) === 1, "e writes a note shown under the verse");
+  check((await present(page.locator('[id="GEN-1-1"]').getByText("smoke-test note"))) === 1, "e writes a note shown under the verse");
   await page.keyboard.press("x");
   await drawer.locator("ol li a").first().waitFor({ timeout: 10000 });
   check(await drawer.isVisible(), "x opens the verse's cross-references");
@@ -246,11 +252,11 @@ try {
     .then(() => true, () => false);
   check(kept, "notes survive a reload");
   await page.goto(`${BASE}/bookmarks`);
-  check((await page.getByRole("link", { name: "Genesis 1:1" }).count()) === 1, "bookmarks page lists the verse");
-  check((await page.getByText("smoke-test note").count()) === 1, "bookmarks page shows the note");
+  check((await present(page.getByRole("link", { name: "Genesis 1:1" }))) === 1, "bookmarks page lists the verse");
+  check((await present(page.getByText("smoke-test note"))) === 1, "bookmarks page shows the note");
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Clear all" }).click();
-  check((await page.getByText("Nothing here yet").count()) === 1, "clear all removes them");
+  check((await present(page.getByText("Nothing here yet"))) === 1, "clear all removes them");
 
   console.log("API");
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
