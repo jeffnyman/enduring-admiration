@@ -50,7 +50,16 @@ npm run build && npm start                      # http://localhost:3000
 # or, while developing:  npm run dev
 ```
 
-`BIBLE_DB=/path/to/bible.db` points the app at a database elsewhere. `pipeline/sample_ingest.py` is the small Genesis 1 / Tobit 1 / John 1 test build.
+`BIBLE_DB=/path/to/bible.db` points the app at a database elsewhere. `pipeline/sample_ingest.py` is the small Genesis 1 / Tobit 1 / John 1 test build (writes `db/sample.db`).
+
+## Check it
+
+```bash
+scripts/check.sh          # sample pipeline test, web typecheck/lint/build, browser smoke test
+scripts/check.sh --full   # also rebuilds db/bible.db and runs its full verification first (~3 min)
+```
+
+The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium) through the reader: opening chapters, clicking Hebrew and Greek words, navigating, searching and the phone layout. It checks structure and behaviour only, never Scripture text. The quick mode needs an existing `db/bible.db`.
 
 ## Layout
 
