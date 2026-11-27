@@ -2,6 +2,16 @@
 
 A local-first Bible: the World English Bible beside the Hebrew (WLC), the Septuagint (Swete; Brenton as a cross-check) and the Greek New Testament (SBLGNT). Every Hebrew and Greek word opens its lemma, parsing and entries from Strong's, BDB, Thayer's and LSJ. All text comes from openly licensed source files; nothing is typed in by hand.
 
+## Reading and study
+
+- **Side by side:** English (WEB) beside the Hebrew, the Septuagint and the Greek New Testament, aligned verse by verse; columns can be switched on and off.
+- **Word study:** click any Hebrew or Greek word for its lemma, parsing in plain English, lexicon entries (Strong's, BDB, Thayer's, LSJ), Septuagint equivalents and all occurrences. The **Glosses** switch puts an English gloss under every word.
+- **Cross-references:** the ↗ button beside a verse number lists related verses with their text (OpenBible.info, CC BY, ranked by votes, plus the WEB's own notes).
+- **Bookmarks and notes:** ☆ and ✎ beside a verse number. They are stored only in your browser; the Bookmarks page lists them and can export and import them as a file.
+- **Keyboard:** `j`/`k` next/previous verse, `h`/`l` or ←/→ previous/next chapter, `g` glosses, `b` bookmark, `e` note, `x` cross-references, `?` for the list.
+- **Search:** English words or "phrases", Hebrew and Greek (vowels and accents optional), or a Strong's number such as H7225.
+- **Canons:** the book picker lists the Protestant, Catholic or Orthodox canon; the latter two read Daniel and Esther with their Greek additions in place.
+
 ## Terms used here
 
 **Texts (the columns in the reader)**
