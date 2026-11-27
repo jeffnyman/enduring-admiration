@@ -1,0 +1,52 @@
+name: Test the release zip
+description: >
+  Unzip the release, start it with the launcher a reader would use (start.cmd on Windows,
+  start.sh elsewhere) and run the browser smoke test against it.
+inputs:
+  zip:
+    description: Path to bible-reader-<version>.zip
+    required: true
+  port:
+    description: Port for the packaged server
+    default: "3123"
+runs:
+  using: composite
+  steps:
+    - name: Install the smoke test's dependencies
+      shell: bash
+      working-directory: web
+      run: npm ci --no-audit --no-fund
+
+    - name: Unzip, start with the launcher, run the smoke test
+      shell: bash
+      env:
+        ZIP: ${{ inputs.zip }}
+        PORT: ${{ inputs.port }}
+      run: |
+        set -euo pipefail
+        WORK="$RUNNER_TEMP/release"
+        rm -rf "$WORK" && mkdir -p "$WORK"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          7z x -bd -o"$WORK" "$ZIP" >/dev/null
+        else
+          unzip -q "$ZIP" -d "$WORK"
+        fi
+        DIR=$(find "$WORK" -mindepth 1 -maxdepth 1 -type d -name 'bible-reader-*' | head -1)
+        echo "Unzipped to $DIR"
+        node --version
+
+        cd "$DIR"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          MSYS_NO_PATHCONV=1 cmd.exe /c start.cmd --port "$PORT" --no-open >"$WORK/server.log" 2>&1 &
+        else
+          ./start.sh --port "$PORT" --no-open >"$WORK/server.log" 2>&1 &
+        fi
+        for _ in $(seq 1 120); do
+          curl -sf "http://localhost:$PORT/about" >/dev/null && break
+          sleep 1
+        done
+        cat "$WORK/server.log"
+        curl -sf "http://localhost:$PORT/about" >/dev/null || { echo "The packaged server did not start"; exit 1; }
+
+        cd "$GITHUB_WORKSPACE/web"
+        BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs

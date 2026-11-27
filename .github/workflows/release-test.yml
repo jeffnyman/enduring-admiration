@@ -1,0 +1,55 @@
+# Tests the zip attached to a published GitHub release: downloads it, checks its SHA-256, then
+# starts it on Linux, Windows and macOS and runs the browser smoke test. Runs when a release is
+# published, or by hand for any existing release tag.
+name: Test release download
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test (e.g. v0.1.0)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}, Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ["22.13.0", "24"]
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      # the test action and smoke test come from the current branch (older tags predate them)
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Download the release zip and check its SHA-256
+        id: zip
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/zip" && cd "$RUNNER_TEMP/zip"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'bible-reader-*.zip*'
+          if command -v sha256sum >/dev/null; then sha256sum -c bible-reader-*.zip.sha256
+          else shasum -a 256 -c bible-reader-*.zip.sha256; fi
+          echo "path=$RUNNER_TEMP/zip/$(ls bible-reader-*.zip | head -1)" >>"$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/test-package
+        with:
+          zip: ${{ steps.zip.outputs.path }}
