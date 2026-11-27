@@ -3,7 +3,7 @@ Act as a senior full-stack engineer. I am building a local-first web Bible appli
 Architecture & Stack:
 
 • Data Pipeline (Python): Write Python ingestion scripts to parse standard open-source biblical formats (USFM / OSIS XML / TSV) and build a clean, indexed SQLite database (bible.db).
-• Web App (Node.js): Build a fast, clean Next.js (App Router) + TypeScript + Tailwind CSS frontend that reads directly from bible.db (using better-sqlite3 or Prisma).
+• Web App (Node.js): Build a fast, clean Next.js (App Router) + TypeScript + Tailwind CSS frontend that reads directly from bible.db (using Node's built-in node:sqlite, chosen over better-sqlite3 so releases need no native module).
 
 Core Features & Public-Domain Data Sources:
 

@@ -332,7 +332,7 @@ export function getWord(tokenId: number): WordDetails | null {
        FROM morpheme m LEFT JOIN morph_code mc ON mc.scheme_id = ? AND mc.code = m.morph_code
        WHERE m.token_id = ? ORDER BY m.position`,
     )
-    .all(t.scheme, tokenId) as Omit<Morpheme, "entries">[];
+    .all(t.scheme, tokenId) as unknown as Omit<Morpheme, "entries">[];
   const entryStmt = d.prepare(
     `SELECT ml.lexicon_id AS lexiconId, l.name AS lexiconName, ml.match, le.entry_key AS entryKey, le.lemma,
             le.translit, le.pronunciation, le.part_of_speech AS partOfSpeech, le.short_def AS shortDef,

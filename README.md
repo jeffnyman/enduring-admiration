@@ -86,7 +86,7 @@ The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium
 | `pipeline/build_bible.py` | Full build + verification report |
 | `pipeline/bibleingest/` | Parsers: USFM, MorphHB, Swete TEI, TAGNT, lexicons, TVTMS versification |
 | `pipeline/versification_overrides.tsv` | Documented numbering fixes TVTMS doesn't cover (each checked at build time) |
-| `web/` | Next.js reader (App Router, better-sqlite3, read-only) |
+| `web/` | Next.js reader (App Router, built-in node:sqlite, read-only) |
 
 ## Licensing
 
