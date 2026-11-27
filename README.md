@@ -2,6 +2,8 @@
 
 A local-first Bible: the World English Bible beside the Hebrew (WLC), the Septuagint (Swete; Brenton as a cross-check) and the Greek New Testament (SBLGNT). Every Hebrew and Greek word opens its lemma, parsing and entries from Strong's, BDB, Thayer's and LSJ. All text comes from openly licensed source files; nothing is typed in by hand.
 
+For why these Hebrew and Greek editions were chosen, what each is good and weak at, and how verse numbering is reconciled, see [About the texts](TEXTS.md).
+
 ## Reading and study
 
 - **Side by side:** English (WEB) beside the Hebrew, the Septuagint and the Greek New Testament, aligned verse by verse; columns can be switched on and off.
