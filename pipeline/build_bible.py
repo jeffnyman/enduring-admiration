@@ -23,12 +23,13 @@ import re
 import sqlite3
 import sys
 import time
+import unicodedata as ud
 import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import sample_ingest as S
-from bibleingest import greek, morphhb, oshb_morph, swete, tahot, tvtms, usfm
+from bibleingest import greek, morphhb, oshb_morph, sblgnt, swete, tahot, tvtms, usfm
 from bibleingest.books import BOOKS, ORD
 from bibleingest.textnorm import norm_greek, norm_hebrew, script_of
 
@@ -72,9 +73,12 @@ SWETE_BOOKS = [
     (52, "Dan", "tlg056", None), (53, "DanTh", "tlg057", "DAG"), (54, "Bel", "tlg058", None),
     (55, "BelTh", "tlg059", "BEL"),
 ]
-SKIPPED_SWETE = {"PssSol": "Psalms of Solomon: not canonical in any tradition covered",
-                 "Sus": "Old Greek Susanna (Theodotion used)", "Dan": "Old Greek Daniel (Theodotion used)",
-                 "Bel": "Old Greek Bel (Theodotion used)"}
+SKIPPED_SWETE = {"PssSol": "Psalms of Solomon: not canonical in any tradition covered"}
+# The Old Greek (pre-Theodotion) Daniel, Susanna and Bel: a separate optional edition
+OLD_GREEK = {"Dan": "DAG", "Sus": "SUS", "Bel": "BEL"}
+SBLGNT_SHA = "d7f35adca9ec410e1d1499c63b4dd989d76c8d4d"
+SBLGNT_BOOKS = ("Matt Mark Luke John Acts Rom 1Cor 2Cor Gal Eph Phil Col 1Thess 2Thess 1Tim 2Tim Titus Phlm "
+                "Heb Jas 1Pet 2Pet 1John 2John 3John Jude Rev").split()
 
 
 def sources():
@@ -94,10 +98,21 @@ def sources():
         version=S.STEP_SHA, license="CC-BY-4.0",
         attribution="Translators Amalgamated Hebrew OT, STEPBible.org / Tyndale House Cambridge (CC BY 4.0)")
     by_tlg = {f.split("__")[0]: f for f in SWETE_FILES}
+    wanted = lambda abbr, tgt: tgt or abbr in OLD_GREEK
     src["f1k-swete"] = dict(src["f1k-swete"], files={
-        abbr: f"{S.QF}/swete-tei/{by_tlg[tlg]}" for _, abbr, tlg, tgt in SWETE_BOOKS if tgt})
+        abbr: f"{S.QF}/swete-tei/{by_tlg[tlg]}" for _, abbr, tlg, tgt in SWETE_BOOKS if wanted(abbr, tgt)})
     src["qf-lxx-morph"] = dict(src["qf-lxx-morph"], files={
-        abbr: f"{S.QF}/morph-morpheus/{code:03d}-{abbr}.txt" for code, abbr, _, tgt in SWETE_BOOKS if tgt})
+        abbr: f"{S.QF}/morph-morpheus/{code:03d}-{abbr}.txt" for code, abbr, _, tgt in SWETE_BOOKS if wanted(abbr, tgt)})
+    # the official SBLGNT (eBible's USFM conversion broke words around footnotes)
+    sbl = f"{S.GH}/LogosBible/SBLGNT/{SBLGNT_SHA}/data"
+    src.pop("ebible-grcsbl")
+    src["sblgnt"] = dict(
+        title="SBL Greek New Testament (official source files, with apparatus)",
+        files={**{b: f"{sbl}/sblgnt/xml/{b}.xml" for b in SBLGNT_BOOKS},
+               **{f"{b}.app": f"{sbl}/sblgntapp/xml/{b}.xml" for b in SBLGNT_BOOKS}},
+        version=SBLGNT_SHA, license="CC-BY-4.0",
+        attribution="SBL Greek New Testament. Copyright © 2010 Society of Biblical Literature and Logos "
+                    "Bible Software. CC BY 4.0.")
     return src
 
 
@@ -106,6 +121,8 @@ NOTES = {
                  "as Ezra, 11-23 as Nehemiah 1-13. Psalm 151 stored as PS2. Prayer of Manasseh = Odes 12. "
                  "Esther additions: Swete's own numbering (A = chapter 0). verse.source_ref keeps Swete's refs.",
     "LXX-BRENTON": S.EDITION_NOTES["LXX-BRENTON"] + " 2 Esdras split into Ezra/Nehemiah; Psalm 151 stored as PS2.",
+    "SBLGNT": "Official SBLGNT source files with apparatus. Lemma/morph/Strong's aligned from STEP TAGNT, "
+              "including the SBL readings TAGNT records as variants.",
 }
 
 
@@ -162,6 +179,93 @@ def align_by_text(words, report, target, ref, book, ref_book=None, select=lambda
     report.setdefault("text_aligned", {})[(target, book)] = len(new)
 
 
+# Spelling differences that are real Vaticanus/Swete orthography, not OCR errors: ει/ι and ε/αι
+# (itacism), ο/ω, unassimilated ν before labials/velars, aspirated/unaspirated stops (ἔφιδε/ἔπιδε,
+# ἐφ’/ἐπ’), and movable ν.
+_ORTHO = [("ει", "ι"), ("αι", "ε"), ("ω", "ο"), ("γκ", "νκ"), ("γγ", "νγ"), ("γχ", "νχ"), ("γξ", "νξ"),
+          ("μπ", "νπ"), ("μβ", "νβ"), ("μφ", "νφ"), ("μψ", "νψ"), ("μμ", "νμ"), ("λλ", "νλ"),
+          ("φ", "π"), ("θ", "τ"), ("χ", "κ")]
+
+
+def _orthographic(a, b):
+    for x, y in _ORTHO:
+        if a.replace(x, y) == b.replace(x, y):
+            return True
+    return a + "ν" == b or b + "ν" == a
+
+
+def _one_edit(a, b):
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) == 1
+    a, b = sorted((a, b), key=len)
+    return any(b[:i] + b[i + 1:] == a for i in range(len(b)))
+
+
+def correct_swete_ocr(units, report):
+    """Correct clear OCR errors in the Swete transcription, conservatively. A word is corrected
+    only when (1) Morpheus could not analyse it, (2) Brenton's aligned word differs by exactly one
+    letter, (3) that form is attested elsewhere in Swete as an analysed word (2+ times), and
+    (4) the difference is not a known Vaticanus spelling pattern. The OCR form is kept."""
+    sim = lambda a, b: difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes()
+    analysed, surfaces, tags = Counter(), defaultdict(Counter), defaultdict(Counter)
+    for (ed, book), items in units.items():
+        if ed != "LXX-SWETE":
+            continue
+        for *_, (toks, _ref) in items:
+            for t in toks:
+                tag = t.get("tag")
+                if tag and tag["src"] == "morpheus" and not tag["code"].startswith("NP"):
+                    analysed[t["surface_norm"]] += 1
+                    surfaces[t["surface_norm"]][t["surface"].lower()] += 1
+                    tags[t["surface_norm"]][(tag["lemma"], tag["code"])] += 1
+    brenton = defaultdict(list)
+    for (ed, book), items in units.items():
+        if ed == "LXX-BRENTON":
+            for ch, v, part, (pv, toks) in items:
+                for r, *_ in S.MAPS[(ed, book)].get((str(ch), v, part), []):
+                    brenton[(r.book, str(r.ch), r.v)].extend(t["surface_norm"] for t in toks)
+    fixed, skipped_ortho = [], 0
+    for (ed, book), items in units.items():
+        if ed != "LXX-SWETE":
+            continue
+        for ch, v, part, (toks, _ref) in items:
+            ref_words = [w for r, *_ in S.MAPS[(ed, book)].get((str(ch), v, part), [])
+                         for w in brenton.get((r.book, str(r.ch), r.v), [])]
+            if not ref_words:
+                continue
+            norms = [t["surface_norm"] for t in toks]
+            for op, i1, i2, j1, j2 in sim(norms, ref_words):
+                if op != "replace" or i2 - i1 != j2 - j1:
+                    continue
+                for k in range(i2 - i1):
+                    t, target = toks[i1 + k], ref_words[j1 + k]
+                    tag = t.get("tag")
+                    unanalysed = not tag or (tag["code"].startswith("NP") and t["surface"][:1].islower())
+                    if not unanalysed or analysed[t["surface_norm"]] or analysed[target] < 2:
+                        continue
+                    if not _one_edit(t["surface_norm"], target):
+                        continue
+                    if _orthographic(t["surface_norm"], target):
+                        skipped_ortho += 1
+                        continue
+                    new = surfaces[target].most_common(1)[0][0]
+                    if t["surface"][:1].isupper():
+                        new = new[:1].upper() + new[1:]
+                    # keep a grave accent (mid-sentence oxytone) where the transcription had one
+                    if "\u0300" in ud.normalize("NFD", t["surface"]):
+                        nfd = ud.normalize("NFD", new)
+                        k = nfd.rfind("\u0301")
+                        if k >= 0:
+                            new = ud.normalize("NFC", nfd[:k] + "\u0300" + nfd[k + 1:])
+                    lemma, code = tags[target].most_common(1)[0][0]
+                    fixed.append((book, ch, v, t["surface"], new))
+                    t["ocr_original"], t["surface"], t["surface_norm"] = t["surface"], new, target
+                    t["tag"], t["tag_status"] = {"lemma": lemma, "code": code, "src": "morpheus"}, "inferred"
+    report["ocr_fixed"], report["ocr_skipped_orthographic"] = fixed, skipped_ortho
+
+
 def rule_book(book):
     """TVTMS keys Greek Daniel (with Prayer of Azariah, Susanna, Bel) under Dan."""
     return "DAN" if book == "DAG" else book
@@ -184,7 +288,7 @@ class Writer:
                               t["surface"], t["surface_norm"], t.get("leading", ""), t.get("trailing", ""),
                               t.get("source_ref"), t.get("lemma_raw"), t.get("morph_raw"),
                               scheme if t.get("morphemes") else None, t.get("gloss"), gloss_kind,
-                              t.get("translit"), t.get("tag_status", "none")))
+                              t.get("translit"), t.get("tag_status", "none"), t.get("ocr_original")))
             norm = norm_hebrew if scheme == "oshb" else norm_greek
             for m in t.get("morphemes", []):
                 self.morph_id += 1
@@ -197,7 +301,8 @@ class Writer:
     def flush(self):
         self.con.executemany("INSERT INTO token (id, verse_id, position, variant, variant_group, surface,"
                              " surface_norm, leading, trailing, source_ref, lemma_raw, morph_raw, morph_scheme,"
-                             " gloss, gloss_kind, translit, tag_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             " gloss, gloss_kind, translit, tag_status, ocr_original)"
+                             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              self.toks)
         self.con.executemany("INSERT INTO morpheme (id, token_id, position, role, surface, surface_norm, lemma,"
                              " strongs, strongs_ext, morph_code, gloss) VALUES (?,?,?,?,?,?,?,?,?,?,?)", self.morphs)
@@ -220,7 +325,11 @@ def build(report):
     con.commit()                                  # PRAGMAs below can't run inside a transaction
     con.execute("PRAGMA synchronous = OFF")
     con.execute("PRAGMA journal_mode = MEMORY")
-    data = S.load_sources(con, sources(), NOTES)
+    data = S.load_sources(con, sources(), NOTES, sblgnt_source="sblgnt")
+    con.execute("INSERT INTO edition VALUES (?,?,?,?,?,?,?,?,?)", (
+        "LXX-SWETE-OG", "Septuagint, Old Greek Daniel (Swete)", "grc", "ltr", "original", "lxx", "f1k-swete",
+        "qf-lxx-morph", "The Old Greek translation of Daniel, Susanna and Bel, which churches replaced with "
+        "Theodotion's version (the main Septuagint column). Swete prints both. Lemma/morphology machine-generated."))
     report["t_download"] = time.time() - t0
 
     # Lexicons first: LXX Strong's/LSJ lookups need them
@@ -237,7 +346,7 @@ def build(report):
         lsj_by_lemma.setdefault(lemma, sd)
 
     z = lambda sid: zipfile.ZipFile(io.BytesIO(data[sid]))
-    web_z, br_z, sbl_z = z("ebible-eng-web"), z("ebible-grcbrent"), z("ebible-grcsbl")
+    web_z, br_z = z("ebible-eng-web"), z("ebible-grcbrent")
 
     def usfm_books(zf, skip=("FRT", "GLO", "INT", "BAK", "OTH", "XXA")):
         for n in sorted(zf.namelist()):
@@ -290,23 +399,22 @@ def build(report):
                 add("WLC", book, ch, v["verse"], "", v, sum(1 for t in v["tokens"] if t["variant"] != "qere"))
 
     tagnt = {k: data["step-tagnt"][k].decode("utf-8-sig") for k in data["step-tagnt"]}
-    for code, t in usfm_books(sbl_z):
+    for osis in SBLGNT_BOOKS:
+        code = OSIS_TO_USFM[osis]
         rows_by_ch = greek.parse_tagnt_book(tagnt["Mat-Jhn" if ORD[code] <= ORD["JHN"] else "Act-Rev"],
                                             step_abbr(code))
-        for ch, verses in usfm.parse_book(t, note_kind_f="textcritical").items():
-            for v in verses:
-                # eBible's SBLGNT ends books with "‘p /’ ‘/book’" markers
-                v["text"] = re.sub(r"\s*‘/?(?:p|book)\s*/?’", "", v["text"]).strip()
-                v["tokens"] = greek.tokenize(v["text"])
+        book = sblgnt.parse_book(data["sblgnt"][osis].decode("utf-8"), data["sblgnt"][f"{osis}.app"].decode("utf-8"))
+        report["sbl_total"] = report.get("sbl_total", 0) + sum(len(v["tokens"]) for vs in book.values() for v in vs)
+        for ch, verses in book.items():
             report.setdefault("sbl_unaligned", []).extend(
                 (code, ch, vn, w) for vn, w in greek.align(verses, rows_by_ch.get(ch, [])))
             for v in verses:
                 add("SBLGNT", code, ch, v["verse"], v["part"], v, len(v["tokens"]), v["verse_end"])
 
     report["swete_log"] = Counter()
-    for code, abbr, tlg, target in SWETE_BOOKS:
-        if not target:
-            continue
+    plan = [("LXX-SWETE", abbr, target) for _, abbr, _, target in SWETE_BOOKS if target]
+    plan += [("LXX-SWETE-OG", abbr, target) for abbr, target in OLD_GREEK.items()]
+    for edition, abbr, target in plan:
         tei = swete.book_text(data["f1k-swete"][abbr].decode("utf-8"), report["swete_log"])
         rows = list(swete.morph_rows(data["qf-lxx-morph"][abbr].decode("utf-8")))
         index = swete.book_index(rows)
@@ -332,10 +440,11 @@ def build(report):
             for (vn, part), toks in verses.items():
                 moved = book != target or ch != src_ch or src_ch == 0
                 src_ref = f"{abbr} {'prologue' if src_ch == 0 else src_ch}:{vn}{part}" if moved else None
-                add("LXX-SWETE", book, ch, vn, part, (toks, src_ref), len(toks))
+                add(edition, book, ch, vn, part, (toks, src_ref), len(toks))
                 if vn == 0:                                   # Psalm title printed before verse 1
-                    inv["LXX-SWETE"].titles.add((book, str(ch)))
-                words[("LXX-SWETE", book, str(ch), vn, part)] = [x["surface_norm"] for x in toks]
+                    inv[edition].titles.add((book, str(ch)))
+                if edition == "LXX-SWETE":
+                    words[(edition, book, str(ch), vn, part)] = [x["surface_norm"] for x in toks]
     report["words"] = words
     report["t_parse"] = time.time() - t0
 
@@ -344,7 +453,7 @@ def build(report):
     rules, report["tvtms_stats"] = tvtms.parse_expanded(data["step-tvtms"].decode("utf-8"), last)
     prefer = {"WEB": ("Eng-KJV", "Eng-NRSV", "AllBibles"), "SBLGNT": ("Eng-KJV", "AllBibles"),
               "WLC": ("Hebrew", "AllBibles"), "LXX-SWETE": ("Greek", "AllBibles"),
-              "LXX-BRENTON": ("Greek", "AllBibles")}
+              "LXX-BRENTON": ("Greek", "AllBibles"), "LXX-SWETE-OG": ("Greek", "AllBibles")}
     report["tvtms"] = {}
     for edition, book in units:
         rb = rule_book(book)
@@ -361,6 +470,7 @@ def build(report):
     # heading and divides 1:43-50 differently -> align Swete to Brenton.
     align_by_text(words, report, "LXX-SWETE", "LXX-BRENTON", "LJE",
                   why="Swete divides the Letter of Jeremiah differently")
+    correct_swete_ocr(units, report)
     report["t_versify"] = time.time() - t0
 
     # --- write verses, maps, tokens
@@ -409,7 +519,7 @@ def build(report):
                     con.executemany("INSERT INTO verse_note (verse_id, kind, text) VALUES (?,?,?)",
                                     [(vid, k, t) for k, t in payload["notes"]])
                     w.tokens(vid, toks, "step-greek")
-                else:                                       # LXX-SWETE
+                else:                                       # LXX-SWETE, LXX-SWETE-OG
                     toks, src_ref = payload
                     for t in toks:
                         if t.get("tag"):
@@ -807,7 +917,17 @@ def verify(con, report):
     say(f"- (info) morphemes whose code has no plain-English expansion: {und}")
     say(f"- (info) MorphHB anomalies: {len(report.get('morphhb_anomalies', []))} {report.get('morphhb_anomalies', [])[:3]}")
     un = report.get("sbl_unaligned", [])
-    say(f"- (info) SBLGNT words without TAGNT tags: {len(un)} e.g. {un[:6]}")
+    check(len(un) / report["sbl_total"] < 0.001, f"SBLGNT words without TAGNT tags: {len(un)} of {report['sbl_total']} "
+          f"(genuine SBL-only readings) e.g. {un[:6]}")
+    fx = report["ocr_fixed"]
+    say(f"- Swete OCR corrections: {len(fx)} (skipped as Vaticanus spelling, not OCR: "
+        f"{report['ocr_skipped_orthographic']}); e.g. {[f'{b} {c}:{v} {o}→{n}' for b, c, v, o, n in fx[:8]]}")
+    kept = q("SELECT COUNT(*) FROM token WHERE ocr_original IS NOT NULL")[0][0]
+    check(kept == len(fx), f"every OCR correction keeps the transcription's form ({kept})")
+    og = q("""SELECT COUNT(DISTINCT cv.id), COUNT(DISTINCT CASE WHEN v.edition_id='LXX-SWETE-OG' THEN cv.id END)
+              FROM canon_verse cv JOIN verse_map m ON m.canon_verse_id = cv.id JOIN verse v ON v.id = m.verse_id
+              WHERE cv.book_id IN ('DAN','S3Y','SUS','BEL')""")[0]
+    check(og[1] / og[0] > 0.9, f"Old Greek Daniel covers {og[1]} of {og[0]} Standard verses of Daniel/Azariah/Susanna/Bel")
     for ed, lex, where, need in (("WLC", "bdb", "NOT (m.role='suffix' AND m.strongs IS NULL)", 0.99), ("SBLGNT", "thayer", "1=1", 0.97),
                                  ("SBLGNT", "lsj", "1=1", 0.97), ("LXX-SWETE", "lsj", "m.morph_code NOT LIKE 'NP %'", 0.90)):
         tot, hit = q(f"""SELECT COUNT(*), SUM(EXISTS (SELECT 1 FROM morpheme_lexicon ml

@@ -179,7 +179,7 @@ EDITION_NOTES = {
 }
 
 
-def load_sources(con, sources=None, notes=None):
+def load_sources(con, sources=None, notes=None, sblgnt_source="ebible-grcsbl"):
     sources, notes = sources or SOURCES, {**EDITION_NOTES, **(notes or {})}
     data = {}
     for sid, s in sources.items():
@@ -206,8 +206,8 @@ def load_sources(con, sources=None, notes=None):
          "qf-lxx-morph", notes["LXX-SWETE"]),
         ("LXX-BRENTON", "Septuagint (Brenton Greek text)", "grc", "ltr", "original", "lxx",
          "ebible-grcbrent", None, notes["LXX-BRENTON"]),
-        ("SBLGNT", "SBL Greek New Testament", "grc", "ltr", "original", "eng", "ebible-grcsbl",
-         "step-tagnt", "Lemma/morph/Strong's aligned from TAGNT; eBible Strong's tags ignored")])
+        ("SBLGNT", "SBL Greek New Testament", "grc", "ltr", "original", "eng", sblgnt_source,
+         "step-tagnt", notes.get("SBLGNT", "Lemma/morph/Strong's aligned from TAGNT; eBible Strong's tags ignored"))])
     return data
 
 

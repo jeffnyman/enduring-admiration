@@ -190,6 +190,7 @@ CREATE TABLE token (
   gloss        TEXT,                      -- short English gloss for the gloss line
   gloss_kind   TEXT CHECK (gloss_kind IN ('contextual','lexical')),  -- in context (TAGNT/TAHOT) or dictionary (LSJ)
   translit     TEXT,
+  ocr_original TEXT,                      -- the transcription's form, when an OCR error was corrected
   -- native: tags came with the text; aligned: matched word-for-word from a tagging source;
   -- inferred: copied from the same form elsewhere in the book (no context; lower confidence)
   tag_status   TEXT NOT NULL DEFAULT 'none'
