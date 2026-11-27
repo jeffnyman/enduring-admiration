@@ -34,6 +34,8 @@ A local-first Bible: the World English Bible beside the Hebrew (WLC), the Septua
 - **Standard numbering.** The common grid the reader aligns everything on: English numbering as in the NRSV, with Psalm titles as verse 0 ("title").
 - **TVTMS.** STEPBible's *Translators Versification Traditions with Methodology for Standardisation*: a public dataset of rules for converting each tradition's numbering to Standard numbering. We apply it to every edition, plus a few documented fixes in `pipeline/versification_overrides.tsv`.
 
+- **Reading layouts.** Catholic and Orthodox Bibles read Daniel with the Prayer of Azariah and the Song of the Three inside chapter 3 and Susanna and Bel as chapters 13–14, and Esther with its Greek additions in place (lettered A–F). Choosing the Catholic or Orthodox canon in the book picker shows Daniel and Esther this way; the Protestant canon shows them in Standard order. The layouts are built into `bible.db` from the WEB's Greek Daniel and Swete's Esther and checked at build time.
+
 **File formats** (only relevant to the data pipeline): **USFM** (Bible text markup used by eBible.org), **OSIS** and **TEI** (XML formats for scripture and other texts), **SQLite FTS5** (the full-text search index inside `bible.db`).
 
 ## Run it
