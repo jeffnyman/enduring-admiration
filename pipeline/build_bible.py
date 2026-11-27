@@ -420,6 +420,7 @@ def build(report):
         except ValueError:
             report["morphgnt_bad"].append(c)
 
+    build_layouts(con, report)
     S.fill_lemmas(con)
     con.execute("INSERT INTO verse_fts(verse_fts) VALUES ('rebuild')")
     con.execute("INSERT INTO schema_meta VALUES ('built_at', datetime('now'))")
@@ -429,6 +430,85 @@ def build(report):
     con.execute("VACUUM")
     report["t_total"] = time.time() - t0
     return con
+
+
+# ----------------------------------------------------------------------------- layouts
+# Esther's Greek additions, lettered as in Catholic Bibles, from Standard (Vulgate-style)
+# numbering, per the TVTMS notes: (letter, Std chapter, first, last, first label number)
+ESTHER_ADDITIONS = [("A", 11, 2, 12, 1), ("A", 12, 1, 6, 12), ("B", 13, 1, 7, 1), ("C", 13, 8, 18, 1),
+                    ("C", 14, 1, 19, 12), ("D", 15, 1, 16, 1), ("E", 16, 1, 24, 1), ("F", 10, 4, 13, 1),
+                    ("F", 11, 1, 1, 11)]
+
+
+def esther_label(ch, v):
+    for letter, c, lo, hi, first in ESTHER_ADDITIONS:
+        if ch == c and lo <= v <= hi:
+            return f"{letter} {first + v - lo}"
+    return None
+
+
+LAYOUTS = [
+    # book, spine edition, Standard books it presents, description
+    ("DAG", "WEB", ("DAN", "S3Y", "SUS", "BEL"),
+     "Daniel as read in Catholic and Orthodox Bibles: the Prayer of Azariah and Song of the Three "
+     "inside chapter 3 (3:24-90), Susanna as chapter 13, Bel and the Dragon as chapter 14. Order and "
+     "numbering follow the WEB's Greek Daniel."),
+    ("ESG", "LXX-SWETE", ("EST", "ESG"),
+     "Esther with the Greek additions in place, lettered A-F as in Catholic Bibles. Order follows "
+     "Swete's Septuagint."),
+]
+
+
+def build_layouts(con, report):
+    """Reading order for Greek Daniel and Esther, built from a spine edition's own order.
+    Every Standard verse of the replaced books appears exactly once: in spine order where the
+    spine has it, otherwise right after its nearest preceding Standard verse."""
+    report["layouts"] = {}
+    for book, spine, books, desc in LAYOUTS:
+        con.execute("INSERT INTO layout VALUES (?,?,?,?)", (book, spine, ",".join(books), desc))
+        ph = ",".join("?" * len(books))
+        target = {cid: (b, ch, v) for cid, b, ch, v in con.execute(
+            f"SELECT id, book_id, chapter, verse FROM canon_verse WHERE book_id IN ({ph}) ORDER BY id", books)}
+        order, info = [], {}
+        rows = con.execute(f"""SELECT v.chapter, v.verse, v.part, group_concat(m.canon_verse_id)
+                               FROM verse v JOIN verse_map m ON m.verse_id = v.id
+                               WHERE v.edition_id = ? AND v.book_id = ? GROUP BY v.id ORDER BY v.id""",
+                           (spine, book)).fetchall()
+        for ch, v, part, cids in rows:
+            new = [c for c in sorted({int(x) for x in cids.split(",")}) if c in target and c not in info]
+            for k, cid in enumerate(new):
+                tb, tch, tv = target[cid]
+                if book == "ESG":
+                    label = esther_label(tch, tv) if tb == "ESG" else str(tv)
+                    lch = 1 if ch == 0 else ch                # Addition A (Swete's prologue) opens chapter 1
+                else:
+                    label = f"{v}{part}" + ("abcdefgh"[k - 1] if k else "")
+                    lch = ch
+                info[cid] = (lch, label)
+                order.append(cid)
+        # Standard verses the spine lacks: after their nearest preceding Standard verse
+        leftovers = [c for c in target if c not in info]
+        for cid in leftovers:
+            tb, tch, tv = target[cid]
+            nxt = [c for c in order if c > cid and target[c][0] == tb]
+            prev = [c for c in order if c < cid and target[c][0] == tb]
+            if nxt:                                     # just before the next Standard verse
+                at = order.index(min(nxt))
+                lch = info[min(nxt)][0]
+            elif prev:
+                at = order.index(max(prev)) + 1
+                lch = info[max(prev)][0]
+            else:
+                at, lch = len(order), tch
+            label = esther_label(tch, tv) if tb == "ESG" else None
+            if not label:
+                label = str(tv) if lch == tch else f"{tch}:{tv}"
+            info[cid] = (lch, label)
+            order.insert(at, cid)
+        con.executemany("INSERT INTO layout_verse VALUES (?,?,?,?,?)",
+                        [(book, info[c][0], i, c, info[c][1]) for i, c in enumerate(order)])
+        report["layouts"][book] = {"verses": len(order), "from spine": len(order) - len(leftovers),
+                                   "placed by neighbour": len(leftovers), "target": len(target)}
 
 
 # ----------------------------------------------------------------------------- verify
@@ -608,7 +688,38 @@ def verify(con, report):
     check(n14 == 42, f"WEB Daniel 14 has 42 verses, as Standard Bel 1:1-42 (override precondition) ({n14})")
 
 
-    say("\n## 5. Tagging and lexicons")
+    say("\n## 5. Reading layouts (Greek Daniel and Esther)")
+    for book, info in report["layouts"].items():
+        check(info["verses"] == info["target"], f"{book} layout covers every Standard verse once: {info}")
+    chs = dict(q("SELECT chapter, COUNT(*) FROM layout_verse WHERE book_id='DAG' GROUP BY 1"))
+    check(sorted(chs) == list(range(1, 15)), f"Daniel layout has chapters 1-14 ({sorted(chs)})")
+    check(chs.get(3, 0) >= 97 and chs.get(13) == 64 and chs.get(14) == 42,
+          f"Daniel 3 holds the Prayer of Azariah ({chs.get(3)} verses); 13 = Susanna ({chs.get(13)}), "
+          f"14 = Bel ({chs.get(14)})")
+    seq = [b for (b,) in q("""SELECT cv.book_id FROM layout_verse lv JOIN canon_verse cv ON cv.id = lv.canon_verse_id
+                               WHERE lv.book_id='DAG' AND lv.chapter=3 ORDER BY lv.seq""")]
+    s3y = [i for i, b in enumerate(seq) if b == "S3Y"]
+    check(s3y and all(b == "DAN" for b in seq[:s3y[0]]) and seq[s3y[-1] + 1:] and
+          all(b == "DAN" for b in seq[s3y[-1] + 1:]) and len(s3y) == s3y[-1] - s3y[0] + 1,
+          "Daniel 3: Hebrew verses, then the whole Prayer of Azariah, then the rest of the chapter")
+    labels = {l for (l,) in q("SELECT label FROM layout_verse WHERE book_id='ESG'")}
+    want = {f"{letter} {n}" for letter, size in (("A", 17), ("B", 7), ("C", 30), ("D", 16), ("E", 24), ("F", 11))
+            for n in range(1, size + 1)}
+    check(want <= labels, f"Esther layout has every addition A 1-F 11 (missing {sorted(want - labels)[:8]})")
+    host = {}
+    for letter in "ABCDEF":
+        host[letter] = q("""SELECT chapter FROM layout_verse WHERE book_id='ESG' AND label LIKE ? LIMIT 1""",
+                         f"{letter} %")[0][0]
+    est_orphans = q("""SELECT cv.chapter, cv.verse FROM canon_verse cv WHERE cv.book_id='EST' AND NOT EXISTS
+                         (SELECT 1 FROM verse_map m JOIN verse v ON v.id=m.verse_id
+                          WHERE m.canon_verse_id=cv.id AND v.edition_id='WLC')""")
+    check(not est_orphans, f"every Standard Esther verse (EST) has its Hebrew counterpart {est_orphans[:8]}")
+    web_c = q("SELECT COUNT(*) FROM verse WHERE edition_id='WEB' AND book_id='ESG' AND chapter=4 AND verse BETWEEN 18 AND 47")[0][0]
+    check(web_c == 30, f"WEB Greek Esther 4:18-47 is 30 verses, as Addition C (override precondition) ({web_c})")
+    check(host == {"A": 1, "B": 3, "C": 4, "D": 4, "E": 8, "F": 10},
+          f"Esther additions sit in their host chapters {host}")
+
+    say("\n## 6. Tagging and lexicons")
     for ed, scheme in (("WLC", "oshb"), ("SBLGNT", "step-greek"), ("LXX-SWETE", "morphgnt")):
         st = dict(q("SELECT t.tag_status, COUNT(*) FROM token t JOIN verse v ON v.id=t.verse_id "
                     "WHERE v.edition_id=? GROUP BY 1", ed))
@@ -634,7 +745,7 @@ def verify(con, report):
         check(hit / tot >= need, f"{ed} words with a {lex} entry: {hit}/{tot} ({hit / tot:.1%})")
     say(f"- (info) Swete cleanup: {dict(report['swete_log'])}")
 
-    say("\n## 6. Search")
+    say("\n## 7. Search")
     for term in ("beginning", "covenant", "mercy"):
         n = q("SELECT COUNT(*) FROM verse_fts f JOIN verse v ON v.id=f.rowid WHERE verse_fts MATCH ? "
               "AND v.edition_id='WEB'", term)[0][0]

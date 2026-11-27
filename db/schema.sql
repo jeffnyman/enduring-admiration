@@ -123,6 +123,29 @@ CREATE TABLE verse_map (
 );
 CREATE INDEX verse_map_by_canon ON verse_map (canon_verse_id);
 
+-- Reading layouts: a book presented in another tradition's order and numbering, built on
+-- top of the canonical grid. Catholic and Orthodox Bibles read Daniel with the Prayer of
+-- Azariah inside chapter 3 and Susanna/Bel as chapters 13-14, and Esther with its Greek
+-- additions in place (A-F). Each layout lists canonical verses in reading order.
+CREATE TABLE layout (
+  book_id       TEXT PRIMARY KEY REFERENCES book(id),  -- book shown with this layout: DAG, ESG
+  spine_edition TEXT NOT NULL REFERENCES edition(id),  -- edition whose order and numbering it follows
+  replaces      TEXT NOT NULL,                         -- Standard books it presents as one: 'DAN,S3Y,SUS,BEL'
+  description   TEXT NOT NULL
+);
+
+CREATE TABLE layout_verse (
+  book_id        TEXT    NOT NULL REFERENCES layout(book_id),
+  chapter        INTEGER NOT NULL,                     -- chapter in this layout
+  seq            INTEGER NOT NULL,                     -- reading order within the book
+  canon_verse_id INTEGER NOT NULL REFERENCES canon_verse(id),
+  label          TEXT    NOT NULL,                     -- verse label in this layout: '24', 'A 1'
+  PRIMARY KEY (book_id, seq),
+  UNIQUE (book_id, canon_verse_id)
+);
+CREATE INDEX layout_verse_chapter ON layout_verse (book_id, chapter, seq);
+CREATE INDEX layout_verse_canon   ON layout_verse (canon_verse_id);
+
 CREATE TABLE verse_note (
   id       INTEGER PRIMARY KEY,
   verse_id INTEGER NOT NULL REFERENCES verse(id) ON DELETE CASCADE,
