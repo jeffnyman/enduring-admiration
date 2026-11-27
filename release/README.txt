@@ -8,8 +8,8 @@ and it works without an internet connection.
 
 WHAT YOU NEED
 
-  Node.js 22.13 or newer. If you don't have it, install the "LTS" version from
-  https://nodejs.org (it is free). Nothing else needs installing.
+  Node.js 22.16 or newer (Node 23 won't work). If you don't have it, install the
+  "LTS" version from https://nodejs.org (it is free). Nothing else needs installing.
 
 START IT
 

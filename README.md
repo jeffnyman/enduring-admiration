@@ -55,7 +55,7 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 ## Download and run
 
-The easiest way to read is the release download, `bible-reader-<version>.zip` (about 145 MB). Unzip it and double-click `start.command` (Mac) or `start.cmd` (Windows), or run `./start.sh` (Mac/Linux). The reader opens at http://localhost:3000. It needs only [Node.js](https://nodejs.org) 22.13 or newer. There is no install step, nothing to compile, and nothing is sent over the network. The same zip runs on Mac, Windows and Linux. `README.txt` inside explains the details, `NOTICE.txt` lists every source and license, and `TEXTS.md` is included.
+The easiest way to read is the release download, `bible-reader-<version>.zip` (about 145 MB). Unzip it and double-click `start.command` (Mac) or `start.cmd` (Windows), or run `./start.sh` (Mac/Linux). The reader opens at http://localhost:3000. It needs only [Node.js](https://nodejs.org) 22.16 or newer (not Node 23, whose built-in SQLite lacks full-text search). There is no install step, nothing to compile, and nothing is sent over the network. The same zip runs on Mac, Windows and Linux. `README.txt` inside explains the details, `NOTICE.txt` lists every source and license, and `TEXTS.md` is included.
 
 To make the zip from a built `db/bible.db`:
 
@@ -88,7 +88,7 @@ scripts/check.sh          # sample pipeline test, web typecheck/lint/build, brow
 scripts/check.sh --full   # also rebuilds db/bible.db and runs its full verification first (~3 min)
 ```
 
-On GitHub, the **CI** workflow runs `scripts/check.sh --full` on Linux for every push and pull request. It then packages the release zip and starts it on Linux, Windows and macOS, on Node 22.13 (the oldest supported) and the current LTS, and runs the smoke test against each. **Test release download** does the same for the zip attached to a published release, after checking its SHA-256.
+On GitHub, the **CI** workflow runs `scripts/check.sh --full` on Linux for every push and pull request. It then packages the release zip and starts it on Linux, Windows and macOS, on Node 22.16 (the oldest supported) and the current LTS, and runs the smoke test against each. **Test release download** does the same for the zip attached to a published release, after checking its SHA-256.
 
 The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium) through the reader: opening chapters, clicking Hebrew and Greek words, navigating, searching and the phone layout. It checks structure and behaviour only, never Scripture text. The quick mode needs an existing `db/bible.db`.
 

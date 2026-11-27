@@ -91,7 +91,9 @@ try {
   await page.goto(`${BASE}/read/PSA/23`);
   check((await page.locator(".verse-row").first().innerText()).toLowerCase().startsWith("title"), "Psalm title has its own row");
   await page.goto(`${BASE}/read/XYZ/1`);
-  check((await page.getByText("could not be found").count()) > 0, "unknown book shows not-found page");
+  // the not-found content streams in after the load event
+  const notFound = await page.getByText("could not be found").first().waitFor({ timeout: 10000 }).then(() => true, () => false);
+  check(notFound, "unknown book shows not-found page");
 
   console.log("Search");
   await page.goto(`${BASE}/search?q=beginning`);

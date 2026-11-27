@@ -1,5 +1,5 @@
 @echo off
-rem Windows: start the Bible reader. Needs Node.js 22.13 or newer (https://nodejs.org).
+rem Windows: start the Bible reader. Needs Node.js 22.16 or newer (not 23) (https://nodejs.org).
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (

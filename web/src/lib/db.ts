@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 
 // bible.db is built by pipeline/build_bible.py. It is read-only at runtime.
-// node:sqlite is built into Node (22.13+), so the app has no native module to compile per platform.
+// node:sqlite is built into Node (22.16+ and 24+; search needs its FTS5, which Node 23 lacks), so the app has no native module to compile per platform.
 const DB_PATH = process.env.BIBLE_DB ?? path.join(process.cwd(), "..", "db", "bible.db");
 
 const globalForDb = globalThis as unknown as { bibleDb?: DatabaseSync };

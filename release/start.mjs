@@ -11,12 +11,23 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MIN = [22, 13];
-const [major, minor] = process.versions.node.split(".").map(Number);
-if (major < MIN[0] || (major === MIN[0] && minor < MIN[1])) {
-  console.error(`This app needs Node.js ${MIN.join(".")} or newer (you have ${process.versions.node}).`);
+// Search needs SQLite's full-text index (FTS5), which Node's built-in SQLite has from 22.16 and
+// 24.0 on (Node 23 never had it).
+const NEED = "Node.js 22.16 or newer (but not Node 23)";
+const tooOld = () => {
+  console.error(`This app needs ${NEED}. You have ${process.versions.node}.`);
   console.error("Download the LTS version from https://nodejs.org and run this again.");
   process.exit(1);
+};
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 22 || (major === 22 && minor < 16)) tooOld();
+try {
+  const { DatabaseSync } = await import("node:sqlite");
+  const probe = new DatabaseSync(":memory:");
+  if (!probe.prepare("SELECT 1 FROM pragma_compile_options WHERE compile_options = 'ENABLE_FTS5'").get()) tooOld();
+  probe.close();
+} catch {
+  tooOld();
 }
 
 const args = process.argv.slice(2);

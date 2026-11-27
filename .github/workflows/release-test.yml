@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ["22.13.0", "24"]
+        node: ["22.16.0", "24"]
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:

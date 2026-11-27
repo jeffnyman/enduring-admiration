@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the release download: one zip that runs on Mac, Windows and Linux with Node.js 22.13+.
+# Build the release download: one zip that runs on Mac, Windows and Linux with Node.js 22.16+ (not 23).
 #
 #   scripts/package.sh            -> dist/bible-reader-<version>.zip (+ .sha256)
 #   scripts/package.sh --no-test  skip starting the packaged app and running the smoke test
