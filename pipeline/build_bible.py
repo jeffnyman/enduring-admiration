@@ -28,9 +28,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import sample_ingest as S
-from bibleingest import greek, morphhb, oshb_morph, swete, tvtms, usfm
+from bibleingest import greek, morphhb, oshb_morph, swete, tahot, tvtms, usfm
 from bibleingest.books import BOOKS, ORD
-from bibleingest.textnorm import norm_hebrew, script_of
+from bibleingest.textnorm import norm_greek, norm_hebrew, script_of
 
 ROOT = S.ROOT
 DB = ROOT / "db" / "bible.db"
@@ -87,6 +87,12 @@ def sources():
     src["step-tagnt"] = dict(src["step-tagnt"], title="STEPBible TAGNT (Matthew-Revelation)",
                              files={"Mat-Jhn": tag.format("Mat-Jhn"), "Act-Rev": tag.format("Act-Rev")})
     src["step-tagnt"].pop("url"), src["step-tagnt"].pop("file")
+    tah = f"{S.STEP}/Translators%20Amalgamated%20OT%2BNT/TAHOT%20{{}}%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt"
+    src["step-tahot"] = dict(
+        title="STEPBible TAHOT (Translators Amalgamated Hebrew OT): in-context glosses",
+        files={k: tah.format(k) for k in ("Gen-Deu", "Jos-Est", "Job-Sng", "Isa-Mal")},
+        version=S.STEP_SHA, license="CC-BY-4.0",
+        attribution="Translators Amalgamated Hebrew OT, STEPBible.org / Tyndale House Cambridge (CC BY 4.0)")
     by_tlg = {f.split("__")[0]: f for f in SWETE_FILES}
     src["f1k-swete"] = dict(src["f1k-swete"], files={
         abbr: f"{S.QF}/swete-tei/{by_tlg[tlg]}" for _, abbr, tlg, tgt in SWETE_BOOKS if tgt})
@@ -173,24 +179,28 @@ class Writer:
     def tokens(self, verse_id, tokens, scheme):
         for pos, t in enumerate(tokens, 1):
             self.tok_id += 1
+            gloss_kind = t.get("gloss_kind") or ("contextual" if t.get("gloss") else None)
             self.toks.append((self.tok_id, verse_id, pos, t.get("variant", ""), t.get("variant_group"),
                               t["surface"], t["surface_norm"], t.get("leading", ""), t.get("trailing", ""),
                               t.get("source_ref"), t.get("lemma_raw"), t.get("morph_raw"),
-                              scheme if t.get("morphemes") else None, t.get("gloss"), t.get("translit"),
-                              t.get("tag_status", "none")))
+                              scheme if t.get("morphemes") else None, t.get("gloss"), gloss_kind,
+                              t.get("translit"), t.get("tag_status", "none")))
+            norm = norm_hebrew if scheme == "oshb" else norm_greek
             for m in t.get("morphemes", []):
                 self.morph_id += 1
                 self.morphs.append((self.morph_id, self.tok_id, m["position"], m["role"], m["surface"],
-                                    m.get("lemma"), m["strongs"], m["strongs_ext"], m["morph_code"], m.get("gloss")))
+                                    norm(m["surface"]), m.get("lemma"), m["strongs"], m["strongs_ext"],
+                                    m["morph_code"], m.get("gloss")))
         if len(self.toks) > 50000:
             self.flush()
 
     def flush(self):
         self.con.executemany("INSERT INTO token (id, verse_id, position, variant, variant_group, surface,"
                              " surface_norm, leading, trailing, source_ref, lemma_raw, morph_raw, morph_scheme,"
-                             " gloss, translit, tag_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", self.toks)
-        self.con.executemany("INSERT INTO morpheme (id, token_id, position, role, surface, lemma, strongs,"
-                             " strongs_ext, morph_code, gloss) VALUES (?,?,?,?,?,?,?,?,?,?)", self.morphs)
+                             " gloss, gloss_kind, translit, tag_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             self.toks)
+        self.con.executemany("INSERT INTO morpheme (id, token_id, position, role, surface, surface_norm, lemma,"
+                             " strongs, strongs_ext, morph_code, gloss) VALUES (?,?,?,?,?,?,?,?,?,?,?)", self.morphs)
         self.toks, self.morphs = [], []
 
 
@@ -216,6 +226,15 @@ def build(report):
     # Lexicons first: LXX Strong's/LSJ lookups need them
     S.load_lexicons(con, data, report)
     finders = S.lxx_strongs_finders(con)
+    # Septuagint gloss line: LSJ's short gloss (dictionary, not in context)
+    lsj_by_key, lsj_by_lemma = {}, {}
+    for ext, base, lemma, sd in con.execute(
+            """SELECT ls.strongs_ext, ls.strongs, le.lemma, le.short_def FROM lexicon_strongs ls
+               JOIN lexicon_entry le ON le.id = ls.entry_id WHERE le.lexicon_id = 'lsj' AND le.short_def IS NOT NULL"""):
+        for k in (ext, base):
+            if k:
+                lsj_by_key.setdefault(k, sd)
+        lsj_by_lemma.setdefault(lemma, sd)
 
     z = lambda sid: zipfile.ZipFile(io.BytesIO(data[sid]))
     web_z, br_z, sbl_z = z("ebible-eng-web"), z("ebible-grcbrent"), z("ebible-grcsbl")
@@ -259,9 +278,14 @@ def build(report):
                 add("LXX-BRENTON", book, ch, v["verse"], v["part"], (v, toks), len(toks), v["verse_end"])
                 words[("LXX-BRENTON", book, str(ch), v["verse"], v["part"])] = [x["surface_norm"] for x in toks]
 
+    tahot_rows = {}
+    for k in data["step-tahot"]:
+        tahot_rows.update(tahot.parse(data["step-tahot"][k].decode("utf-8-sig")))
+    report["tahot_log"] = Counter()
     for osis in MORPHHB_BOOKS:
         book = OSIS_TO_USFM[osis]
         for ch, verses in morphhb.parse_book(data["oshb-morphhb"][osis].decode("utf-8")).items():
+            tahot.attach(verses, tahot_rows, step_abbr(book), ch, report["tahot_log"])
             for v in verses:
                 add("WLC", book, ch, v["verse"], "", v, sum(1 for t in v["tokens"] if t["variant"] != "qere"))
 
@@ -392,6 +416,10 @@ def build(report):
                             codes.add(t["tag"]["code"])
                             t["lemma_raw"], t["morph_raw"] = t["tag"]["lemma"], t["tag"]["code"]
                             t["morphemes"] = [S.lxx_morpheme(t["tag"], t["surface"], finders)]
+                            m = t["morphemes"][0]
+                            g = lsj_by_key.get(m["strongs_ext"]) or lsj_by_key.get(m["strongs"]) or lsj_by_lemma.get(m["lemma"])
+                            if g:
+                                t["gloss"], t["gloss_kind"] = g, "lexical"
                     vid = verse_row(con, edition, book, ch, v, S.verse_text(toks),
                                     " ".join(t["surface_norm"] for t in toks), part=part, source_ref=src_ref)
                     w.tokens(vid, toks, "morphgnt")
@@ -422,6 +450,7 @@ def build(report):
 
     build_layouts(con, report)
     S.fill_lemmas(con)
+    build_lemma_links(con, report)
     con.execute("INSERT INTO verse_fts(verse_fts) VALUES ('rebuild')")
     con.execute("INSERT INTO schema_meta VALUES ('built_at', datetime('now'))")
     con.commit()
@@ -430,6 +459,49 @@ def build(report):
     con.execute("VACUUM")
     report["t_total"] = time.time() - t0
     return con
+
+
+# ----------------------------------------------------------------------------- equivalents
+def build_lemma_links(con, report, top=8):
+    """Hebrew <-> Greek equivalents from co-occurrence in aligned Standard verses (Dice).
+    Only verses present in both the WLC and Swete count; a pair needs 2+ shared verses
+    unless both words are that rare."""
+    def verse_sets(edition, key_sql, where):
+        sets = defaultdict(set)
+        for cid, key in con.execute(
+                f"""SELECT vm.canon_verse_id, {key_sql} FROM morpheme m JOIN token t ON t.id = m.token_id
+                    JOIN verse v ON v.id = t.verse_id JOIN verse_map vm ON vm.verse_id = v.id
+                    WHERE v.edition_id = ? AND {where}""", (edition,)):
+            if key:
+                sets[cid].add(key)
+        return sets
+    heb = verse_sets("WLC", "m.strongs", "m.role = 'stem' AND m.strongs IS NOT NULL")
+    grk = verse_sets("LXX-SWETE", "COALESCE(m.strongs, m.strongs_ext, 'lemma:' || m.lemma)", "m.lemma IS NOT NULL")
+    shared = set(heb) & set(grk)
+    h_n, g_n, pair = Counter(), Counter(), Counter()
+    for cid in shared:
+        hs, gs = heb[cid], grk[cid]
+        h_n.update(hs)
+        g_n.update(gs)
+        for h in hs:
+            for g in gs:
+                pair[(h, g)] += 1
+    rows = []
+    for direction, idx in (("heb>grk", 0), ("grk>heb", 1)):
+        best = defaultdict(list)
+        for (h, g), both in pair.items():
+            hn, gn = h_n[h], g_n[g]
+            if both < 2 and not (hn <= 2 and gn <= 2 and both == min(hn, gn)):
+                continue
+            score = 2 * both / (hn + gn)
+            frm, to = (h, g) if idx == 0 else (g, h)
+            best[frm].append((score, both, to, h_n[frm] if idx == 0 else g_n[frm], g_n[to] if idx == 0 else h_n[to]))
+        for frm, cands in best.items():
+            for rank, (score, both, to, fn, tn) in enumerate(sorted(cands, reverse=True)[:top], 1):
+                rows.append((direction, frm, to, rank, both, fn, tn, round(score, 4)))
+    con.executemany("INSERT INTO lemma_link VALUES (?,?,?,?,?,?,?,?)", rows)
+    report["lemma_links"] = {"aligned verses": len(shared), "hebrew lemmas": len(h_n),
+                             "greek lemmas": len(g_n), "links": len(rows)}
 
 
 # ----------------------------------------------------------------------------- layouts
@@ -745,7 +817,28 @@ def verify(con, report):
         check(hit / tot >= need, f"{ed} words with a {lex} entry: {hit}/{tot} ({hit / tot:.1%})")
     say(f"- (info) Swete cleanup: {dict(report['swete_log'])}")
 
-    say("\n## 7. Search")
+    say("\n## 7. Glosses and Hebrew-Greek equivalents")
+    # Ketiv words are excluded: TAHOT glosses the Qere (what is read) and the Qere token carries it
+    gl = dict(q("""SELECT v.edition_id, ROUND(100.0 * SUM(t.gloss IS NOT NULL) / COUNT(*), 2) FROM token t
+                   JOIN verse v ON v.id = t.verse_id WHERE t.variant != 'ketiv' GROUP BY 1"""))
+    say(f"- TAHOT alignment: {dict(report['tahot_log'])}")
+    check(gl.get("WLC", 0) >= 99, f"Hebrew words (Ketiv excepted) with an in-context gloss (TAHOT): {gl.get('WLC')}%")
+    check(gl.get("SBLGNT", 0) >= 99, f"Greek NT words with an in-context gloss (TAGNT): {gl.get('SBLGNT')}%")
+    check(gl.get("LXX-SWETE", 0) >= 90, f"Septuagint words with a dictionary gloss (LSJ): {gl.get('LXX-SWETE')}%")
+    seg = q("""SELECT COUNT(*), SUM(m.gloss IS NOT NULL) FROM morpheme m JOIN token t ON t.id = m.token_id
+               JOIN verse v ON v.id = t.verse_id WHERE v.edition_id = 'WLC' AND m.role = 'stem'""")[0]
+    say(f"- (info) Hebrew stems with their own segment gloss: {seg[1]}/{seg[0]}")
+    say(f"- equivalents: {report['lemma_links']}")
+    top = lambda d, k: [r[0] for r in q("SELECT to_key FROM lemma_link WHERE direction=? AND from_key=? ORDER BY rank LIMIT 3", d, k)]
+    # well-known translation equivalents (lexical facts): Elohim -> theos, YHWH -> kyrios, erets -> ge
+    for d, h, want in (("heb>grk", "H0430", "G2316"), ("heb>grk", "H3068", "G2962"), ("heb>grk", "H0776", "G1093"),
+                       ("grk>heb", "G2316", "H0430"), ("grk>heb", "G2962", "H3068")):
+        got = top(d, h)
+        check(got[:1] == [want], f"{d} {h}: strongest equivalent is {want} (got {got})")
+    got = top("heb>grk", "H1697")
+    check("G3056" in got or "G4487" in got, f"heb>grk H1697 (davar): logos or rhema among the top 3 (got {got})")
+
+    say("\n## 8. Search")
     for term in ("beginning", "covenant", "mercy"):
         n = q("SELECT COUNT(*) FROM verse_fts f JOIN verse v ON v.id=f.rowid WHERE verse_fts MATCH ? "
               "AND v.edition_id='WEB'", term)[0][0]

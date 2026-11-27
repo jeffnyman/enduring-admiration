@@ -187,7 +187,8 @@ CREATE TABLE token (
   lemma_raw    TEXT,                      -- as given: 'b/7225'
   morph_raw    TEXT,                      -- as given: 'HR/Ncfsa'
   morph_scheme TEXT REFERENCES morph_scheme(id),
-  gloss        TEXT,                      -- short contextual gloss, if source has one
+  gloss        TEXT,                      -- short English gloss for the gloss line
+  gloss_kind   TEXT CHECK (gloss_kind IN ('contextual','lexical')),  -- in context (TAGNT/TAHOT) or dictionary (LSJ)
   translit     TEXT,
   -- native: tags came with the text; aligned: matched word-for-word from a tagging source;
   -- inferred: copied from the same form elsewhere in the book (no context; lower confidence)
@@ -203,6 +204,7 @@ CREATE TABLE morpheme (
   position    INTEGER NOT NULL,
   role        TEXT NOT NULL CHECK (role IN ('prefix','stem','suffix')),
   surface     TEXT NOT NULL,
+  surface_norm TEXT,                      -- surface without points/accents: finds a stem inside prefixed words
   lemma       TEXT,                       -- dictionary form, when known
   strongs     TEXT,                       -- zero-padded base: 'H0430', 'G3056'
   strongs_ext TEXT,                       -- disambiguated: 'H1254a', 'G1492H'
@@ -212,6 +214,25 @@ CREATE TABLE morpheme (
 );
 CREATE INDEX morpheme_strongs ON morpheme (strongs);
 CREATE INDEX morpheme_lemma   ON morpheme (lemma);
+CREATE INDEX morpheme_norm    ON morpheme (surface_norm);
+CREATE INDEX morpheme_ext     ON morpheme (strongs_ext);
+
+-- Hebrew <-> Greek equivalents, measured from the aligned Hebrew Bible and Septuagint: how often
+-- a Hebrew lemma and a Greek lemma occur in the same Standard verse (Dice coefficient). Statistical,
+-- not a word-by-word alignment. Keys: Strong's ('H1697', 'G3056'), else the STEP extended number,
+-- else 'lemma:<Greek lemma>'.
+CREATE TABLE lemma_link (
+  direction   TEXT    NOT NULL CHECK (direction IN ('heb>grk','grk>heb')),
+  from_key    TEXT    NOT NULL,
+  to_key      TEXT    NOT NULL,
+  rank        INTEGER NOT NULL,           -- 1 = strongest for from_key
+  both_verses INTEGER NOT NULL,           -- verses where both occur
+  from_verses INTEGER NOT NULL,           -- aligned verses containing from_key
+  to_verses   INTEGER NOT NULL,
+  score       REAL    NOT NULL,           -- Dice: 2*both / (from + to)
+  PRIMARY KEY (direction, from_key, to_key)
+);
+CREATE INDEX lemma_link_rank ON lemma_link (direction, from_key, rank);
 
 -- ---------------------------------------------------------------------
 -- Lexicons
