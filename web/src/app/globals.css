@@ -16,7 +16,8 @@ body {
 .scripture-en,
 .scripture-he,
 .scripture-grc {
-  overflow-wrap: anywhere;
+  /* only break a word that is longer than the whole line (never mid-word otherwise) */
+  overflow-wrap: break-word;
 }
 
 .scripture-en {
@@ -75,4 +76,35 @@ body {
 
 .verse-row:target {
   background-color: color-mix(in oklab, var(--color-amber-200) 35%, transparent);
+}
+
+/* Gloss line: English under each Hebrew/Greek word */
+ruby.gl {
+  ruby-position: under;
+  ruby-align: center;
+  white-space: nowrap; /* a glossed word never splits across lines */
+}
+
+ruby.gl rt {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-style: normal;
+  line-height: 1.2;
+  color: var(--color-stone-500);
+  direction: ltr;
+  unicode-bidi: isolate;
+  padding-inline: 0.15em;
+}
+
+ruby.gl rt.gl-lex {
+  font-style: italic;
+  color: var(--color-stone-400);
+}
+
+.scripture-he.with-gloss {
+  line-height: 2.9;
+}
+
+.scripture-grc.with-gloss {
+  line-height: 2.6;
 }

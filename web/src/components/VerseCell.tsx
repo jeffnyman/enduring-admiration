@@ -25,7 +25,9 @@ function EnglishText({ v }: { v: EditionVerse }) {
   );
 }
 
-function TokenSpan({ t }: { t: Token }) {
+const cleanGloss = (g: string) => g.replace(/[\s,.;:·]+$/, "").trim();
+
+function TokenSpan({ t, showGloss }: { t: Token; showGloss: boolean }) {
   const variantTitle = t.variant === "ketiv" ? "Ketiv (as written)" : t.variant === "qere" ? "Qere (as read)" : undefined;
   const cls = [
     t.tagged ? "tok" : "tok tok-untagged",
@@ -39,11 +41,26 @@ function TokenSpan({ t }: { t: Token }) {
   ) : (
     <span className={cls} title={variantTitle}>{t.surface}</span>
   );
+  const word = t.variant === "qere" ? <>[{inner}]</> : inner;
   return (
     <>
       {t.leading}
-      {t.variant === "qere" ? <>[{inner}]</> : inner}
-      {t.trailing}
+      {showGloss && t.gloss ? (
+        <>
+          <ruby className="gl">
+            {word}
+            {/* keep joined punctuation (maqaf, sof pasuq, commas) with its word */}
+            {/\s/.test(t.trailing) ? null : t.trailing}
+            <rt className={t.glossKind === "lexical" ? "gl-lex" : undefined}>{cleanGloss(t.gloss)}</rt>
+          </ruby>
+          {/\s/.test(t.trailing) ? t.trailing : null}
+        </>
+      ) : (
+        <>
+          {word}
+          {t.trailing}
+        </>
+      )}
     </>
   );
 }
@@ -70,6 +87,7 @@ export function VerseCell({
   hideHeading = false,
   preferBook,
   expect,
+  glosses = false,
 }: {
   editionId: string;
   verses: EditionVerse[] | undefined;
@@ -84,6 +102,8 @@ export function VerseCell({
   /** English: show the WEB verse from this book first (Greek Daniel/Esther in their layouts) */
   preferBook?: string;
   expect?: Expect;
+  /** show the gloss line under Hebrew and Greek words */
+  glosses?: boolean;
 }) {
   const cls = lang === "hbo" ? "scripture-he" : lang === "grc" ? "scripture-grc" : "scripture-en";
   if (!verses?.length) {
@@ -103,7 +123,7 @@ export function VerseCell({
   const ordered = editionId === "WEB" && preferred.length ? preferred : verses;
 
   return (
-    <div lang={lang} dir={dir} className={cls}>
+    <div lang={lang} dir={dir} className={`${cls}${glosses ? " with-gloss" : ""}`}>
       {ordered.map((v, i) => {
         const label = nativeLabel(v, canonBook, canonChapter, canonVerse, expect);
         const loose = v.relation === "partial" || v.relation === "merged";
@@ -133,7 +153,7 @@ export function VerseCell({
             {v.continued ? (
               <span className="font-sans text-xs italic text-stone-400">(text shown with the verse above)</span>
             ) : v.tokens.length ? (
-              v.tokens.map((t) => <TokenSpan key={t.id} t={t} />)
+              v.tokens.map((t) => <TokenSpan key={t.id} t={t} showGloss={glosses} />)
             ) : editionId === "WEB" ? (
               <EnglishText v={v} />
             ) : (

@@ -167,9 +167,9 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
                         lemma <span dir="auto" className={word.edition.language === "hbo" ? "scripture-he" : "scripture-grc"}>{m.lemma}</span>
                       </span>
                     )}
-                    {(m.strongsExt || m.strongs) && (
-                      <Link href={`/strongs/${m.strongsExt ?? m.strongs}`} className="text-sm text-amber-800 underline dark:text-amber-300">
-                        {m.strongsExt ?? m.strongs}
+                    {m.href && (
+                      <Link href={m.href} className="text-sm text-amber-800 underline dark:text-amber-300" title="All occurrences">
+                        {m.key?.startsWith("lemma:") ? "all occurrences" : (m.strongsExt ?? m.strongs)}
                       </Link>
                     )}
                     {m.gloss && <span className="text-sm text-stone-500">“{m.gloss}”</span>}
@@ -179,6 +179,31 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
                       <span className="font-mono text-xs text-stone-500">{m.morphCode}</span>{" "}
                       {m.morphSummary ?? <span className="text-stone-400">(no expansion)</span>}
                     </p>
+                  )}
+                  {m.equivalents.length > 0 && (
+                    <div className="mb-2 rounded bg-sky-50 p-2 text-sm dark:bg-sky-950">
+                      <div className="mb-1 text-xs font-semibold text-sky-900 dark:text-sky-200">
+                        {word.edition.language === "hbo" ? "In the Septuagint usually" : "Usually renders (Hebrew)"}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {m.equivalents.slice(0, 3).map((q) => (
+                          <li key={q.key} className="flex flex-wrap items-baseline gap-x-1.5">
+                            <Link
+                              href={q.href}
+                              className={`${word.edition.language === "hbo" ? "scripture-grc" : "scripture-he text-lg"} hover:underline`}
+                              dir="auto"
+                            >
+                              {q.lemma}
+                            </Link>
+                            {q.gloss && <span className="text-xs">{q.gloss}</span>}
+                            <span className="text-[0.7rem] text-stone-500">
+                              {q.both}/{q.fromVerses} verses{q.ntCount ? ` · NT ${q.ntCount}×` : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-1 text-[0.65rem] text-stone-500">Statistical: words found together in aligned verses.</div>
+                    </div>
                   )}
                   <div className="space-y-2">
                     {m.entries.map((e) => (

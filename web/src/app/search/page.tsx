@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { normalizeStrongs, search } from "@/lib/bible";
+import { lemmaMatches, normalizeStrongs, search } from "@/lib/bible";
 import { isGreek, isHebrew } from "@/lib/normalize";
 
 const EDITIONS = [
@@ -50,6 +50,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
   const guess = isHebrew(q) ? "WLC" : isGreek(q) ? "LXX-SWETE" : "WEB";
   const ed = typeof sp.ed === "string" && EDITIONS.some(([id]) => id === sp.ed) ? sp.ed : guess;
   const { total, hits } = q ? search(q, ed) : { total: 0, hits: [] };
+  const lemmas = q ? lemmaMatches(q) : [];
   const rtl = ed === "WLC";
 
   return (
@@ -71,11 +72,28 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
         </select>
         <button className="rounded bg-stone-800 px-4 py-2 text-white dark:bg-stone-200 dark:text-stone-900">Search</button>
       </form>
+      {lemmas.length > 0 && (
+        <section className="mb-6 rounded border border-stone-200 p-4 dark:border-stone-800" aria-label="Dictionary words">
+          <h2 className="mb-2 text-sm font-semibold">Dictionary words (all forms, including with prefixes)</h2>
+          <ul className="space-y-1">
+            {lemmas.map((l) => (
+              <li key={l.key} className="flex flex-wrap items-baseline gap-x-2">
+                <Link href={l.href} className={`${/^H/.test(l.key) ? "scripture-he text-xl" : "scripture-grc"} hover:underline`} dir="auto">
+                  {l.lemma}
+                </Link>
+                <span className="text-xs text-stone-500">{l.key.replace(/^lemma:/, "")}</span>
+                {l.gloss && <span className="text-sm">{l.gloss.length > 70 ? l.gloss.slice(0, 67) + "…" : l.gloss}</span>}
+                <span className="text-xs text-stone-500">{l.matches.toLocaleString()} matching words</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {q && (
         <p className="mb-4 text-sm text-stone-500">
           {total.toLocaleString()} verse{total === 1 ? "" : "s"}
           {total > hits.length ? ` (showing the first ${hits.length})` : ""}. Hebrew and Greek are matched without
-          vowels or accents; Hebrew words match whole forms (prefixes count).
+          vowels or accents. Verse matches use whole word forms; the dictionary words above also find prefixed forms.
         </p>
       )}
       <ol className="space-y-3">

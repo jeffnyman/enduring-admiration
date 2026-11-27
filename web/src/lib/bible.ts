@@ -35,6 +35,8 @@ export type Token = {
   trailing: string;
   variant: string;
   tagged: boolean;
+  gloss: string | null;
+  glossKind: "contextual" | "lexical" | null;
 };
 
 export type EditionVerse = {
@@ -168,13 +170,13 @@ export function getChapter(bookId: string, chapter: number, editions: string[]):
     for (const t of d
       .prepare(
         `SELECT id, verse_id AS verseId, position, surface, leading, trailing, variant,
-                morph_scheme IS NOT NULL AS tagged
+                morph_scheme IS NOT NULL AS tagged, gloss, gloss_kind AS glossKind
          FROM token WHERE verse_id IN (${ph(verseIds.length)}) ORDER BY verse_id, position`,
       )
       .all(...verseIds) as (Omit<Token, "tagged"> & { verseId: number; tagged: number })[]) {
       const list = tokens.get(t.verseId) ?? [];
       list.push({ id: t.id, position: t.position, surface: t.surface, leading: t.leading, trailing: t.trailing,
-                  variant: t.variant, tagged: !!t.tagged });
+                  variant: t.variant, tagged: !!t.tagged, gloss: t.gloss, glossKind: t.glossKind });
       tokens.set(t.verseId, list);
     }
     for (const n of d
@@ -265,6 +267,21 @@ export type Morpheme = {
   morphSummary: string | null;
   gloss: string | null;
   entries: LexEntry[];
+  /** key for concordance and equivalents: Strong's, else STEP extended number, else lemma:<lemma> */
+  key: string | null;
+  href: string | null;
+  equivalents: Equivalent[];
+};
+
+export type Equivalent = {
+  key: string;
+  href: string;
+  lemma: string;
+  gloss: string | null;
+  both: number;
+  fromVerses: number;
+  /** New Testament occurrences of a Greek equivalent */
+  ntCount: number | null;
 };
 
 export type WordDetails = {
@@ -311,6 +328,7 @@ export function getWord(tokenId: number): WordDetails | null {
      WHERE ml.morpheme_id = ?
      ORDER BY CASE ml.lexicon_id WHEN 'bdb' THEN 1 WHEN 'thayer' THEN 2 WHEN 'lsj' THEN 3 ELSE 4 END, le.id`,
   );
+  const isGreek = edition.language === "grc";
   return {
     tokenId: t.id,
     surface: t.surface,
@@ -320,8 +338,99 @@ export function getWord(tokenId: number): WordDetails | null {
     variant: t.variant,
     edition,
     ref: `${t.bookName} ${t.chapter}:${t.verse}${t.part}${t.sourceRef ? ` (${t.sourceRef})` : ""}`,
-    morphemes: morphemes.map((m) => ({ ...m, entries: entryStmt.all(m.id) as LexEntry[] })),
+    morphemes: morphemes.map((m) => {
+      const key = m.role === "prefix" ? null : wordKey(m.strongs, m.strongsExt, isGreek ? m.lemma : null);
+      return {
+        ...m,
+        entries: entryStmt.all(m.id) as LexEntry[],
+        key,
+        href: key ? keyHref(key) : null,
+        equivalents: key ? getEquivalents(key, isGreek ? "grk>heb" : "heb>grk", 4) : [],
+      };
+    }),
   };
+}
+
+// ---------------------------------------------------------------------------- lemma keys & equivalents
+/** The key used by lemma_link and concordance pages. */
+export function wordKey(strongs: string | null, ext: string | null, lemma: string | null): string | null {
+  if (strongs) return strongs;
+  if (ext && /^G\d+$/.test(ext)) return ext;
+  return lemma ? `lemma:${lemma}` : null;
+}
+
+export function keyHref(key: string): string {
+  return key.startsWith("lemma:") ? `/lemma/${encodeURIComponent(key.slice(6))}` : `/strongs/${key}`;
+}
+
+/** Headword and short gloss for a key, preferring LSJ/BDB glosses over Strong's. */
+export function keyInfo(key: string): { lemma: string; gloss: string | null } {
+  const d = db();
+  const row = (
+    key.startsWith("lemma:")
+      ? d.prepare(
+          `SELECT lemma, short_def AS gloss FROM lexicon_entry WHERE lemma = ?
+           ORDER BY CASE lexicon_id WHEN 'lsj' THEN 0 ELSE 1 END LIMIT 1`,
+        ).get(key.slice(6))
+      : d.prepare(
+          `SELECT le.lemma, le.short_def AS gloss FROM lexicon_strongs ls JOIN lexicon_entry le ON le.id = ls.entry_id
+           WHERE ls.strongs = @k OR ls.strongs_ext = @k
+           ORDER BY CASE le.lexicon_id WHEN 'lsj' THEN 0 WHEN 'bdb' THEN 0 WHEN 'strongs-grk' THEN 1
+                    WHEN 'strongs-heb' THEN 1 ELSE 2 END, le.id LIMIT 1`,
+        ).get({ k: key })
+  ) as { lemma: string; gloss: string | null } | undefined;
+  return row ?? { lemma: key.replace(/^lemma:/, ""), gloss: null };
+}
+
+export function getEquivalents(key: string, direction: "heb>grk" | "grk>heb", limit = 6): Equivalent[] {
+  const d = db();
+  const rows = d
+    .prepare(
+      `SELECT to_key AS key, both_verses AS both, from_verses AS fromVerses FROM lemma_link
+       WHERE direction = ? AND from_key = ? ORDER BY rank LIMIT ?`,
+    )
+    .all(direction, key, limit) as { key: string; both: number; fromVerses: number }[];
+  const nt = d.prepare(
+    `SELECT COUNT(*) AS n FROM morpheme m JOIN token t ON t.id = m.token_id JOIN verse v ON v.id = t.verse_id
+     WHERE v.edition_id = 'SBLGNT' AND m.strongs = ?`,
+  );
+  return rows.map((r) => {
+    const info = keyInfo(r.key);
+    const gloss = info.gloss && info.gloss.length > 60 ? info.gloss.slice(0, 57) + "…" : info.gloss;
+    return {
+      ...r,
+      href: keyHref(r.key),
+      lemma: info.lemma,
+      gloss,
+      ntCount: direction === "heb>grk" && /^G\d+$/.test(r.key) ? (nt.get(r.key) as { n: number }).n : null,
+    };
+  });
+}
+
+/** Lemmas a Hebrew or Greek search word belongs to: whole-word or stem match (finds בראשית's ראשית). */
+export function lemmaMatches(q: string) {
+  const word = q.trim();
+  if (!word || /\s/.test(word)) return [];
+  const norm = normWord(word);
+  if (!norm || !/[\u05D0-\u05EA\u0370-\u03FF\u1F00-\u1FFF]/.test(norm)) return [];
+  const rows = db()
+    .prepare(
+      `SELECT m.strongs, m.strongs_ext AS ext, m.lemma, v.edition_id AS editionId, COUNT(*) AS n
+       FROM morpheme m JOIN token t ON t.id = m.token_id JOIN verse v ON v.id = t.verse_id
+       WHERE (t.surface_norm = @q OR m.surface_norm = @q) AND m.role != 'prefix'
+       GROUP BY 1, 2, 3, 4 ORDER BY n DESC LIMIT 12`,
+    )
+    .all({ q: norm }) as { strongs: string | null; ext: string | null; lemma: string | null; editionId: string; n: number }[];
+  const byKey = new Map<string, { key: string; href: string; lemma: string; gloss: string | null; matches: number; editions: string[] }>();
+  for (const r of rows) {
+    const key = wordKey(r.strongs, r.ext, r.lemma);
+    if (!key) continue;
+    const cur = byKey.get(key) ?? { key, href: keyHref(key), ...keyInfo(key), matches: 0, editions: [] };
+    cur.matches += r.n;
+    cur.editions.push(r.editionId);
+    byKey.set(key, cur);
+  }
+  return [...byKey.values()];
 }
 
 // ---------------------------------------------------------------------------- search
@@ -422,6 +531,8 @@ export function getStrongs(id: string) {
   const s = normalizeStrongs(id);
   if (!s) return null;
   const d = db();
+  // a letter-suffixed number (H1254a) matches exactly; a plain one matches the Strong's number or a
+  // STEP extended number stored only as strongs_ext (Septuagint-only words, G6000+)
   const hasExt = s.ext !== s.base;
   const entries = d
     .prepare(
@@ -430,18 +541,18 @@ export function getStrongs(id: string) {
               le.definition, le.derivation, le.kjv_usage AS kjvUsage,
               json_extract(le.extra_json, '$.status') AS status, 'strongs' AS match
        FROM lexicon_strongs ls JOIN lexicon_entry le ON le.id = ls.entry_id JOIN lexicon l ON l.id = le.lexicon_id
-       WHERE ${hasExt ? "ls.strongs_ext = ?" : "ls.strongs = ?"}
+       WHERE ${hasExt ? "ls.strongs_ext = @k" : "(ls.strongs = @k OR ls.strongs_ext = @k)"}
        ORDER BY CASE le.lexicon_id WHEN 'strongs-heb' THEN 0 WHEN 'strongs-grk' THEN 0 WHEN 'bdb' THEN 1
                 WHEN 'thayer' THEN 2 ELSE 3 END, le.id`,
     )
-    .all(hasExt ? s.ext : s.base) as LexEntry[];
-  const where = hasExt ? "m.strongs_ext = ?" : "m.strongs = ?";
+    .all({ k: hasExt ? s.ext : s.base }) as LexEntry[];
+  const where = hasExt ? "m.strongs_ext = @k" : "(m.strongs = @k OR (m.strongs IS NULL AND m.strongs_ext = @k))";
   const counts = d
     .prepare(
       `SELECT v.edition_id AS editionId, COUNT(*) AS n FROM morpheme m JOIN token t ON t.id = m.token_id
        JOIN verse v ON v.id = t.verse_id WHERE ${where} GROUP BY 1`,
     )
-    .all(hasExt ? s.ext : s.base) as { editionId: string; n: number }[];
+    .all({ k: hasExt ? s.ext : s.base }) as { editionId: string; n: number }[];
   const occurrences = d
     .prepare(
       `SELECT cv.id AS canonId, v.edition_id AS editionId, cv.book_id AS canonBook, b.name AS bookName, cv.chapter AS canonChapter,
@@ -451,11 +562,48 @@ export function getStrongs(id: string) {
        JOIN book b ON b.id = cv.book_id
        WHERE ${where} GROUP BY t.id ORDER BY b.ord, cv.chapter, cv.verse, v.edition_id LIMIT 2000`,
     )
-    .all(hasExt ? s.ext : s.base) as Omit<StrongsOccurrence, "href">[];
+    .all({ k: hasExt ? s.ext : s.base }) as Omit<StrongsOccurrence, "href">[];
   const withHref = occurrences.map((o) => ({
     ...o, href: verseHref(o.canonId, o.canonBook, o.canonChapter, o.canonVerse),
   }));
-  return { id: hasExt ? s.ext : s.base, entries, counts, occurrences: withHref };
+  const key = hasExt ? s.ext : s.base;
+  return {
+    id: key, entries, counts, occurrences: withHref,
+    equivalents: getEquivalents(s.base, key.startsWith("H") ? "heb>grk" : "grk>heb", 8),
+  };
+}
+
+/** Concordance for a Septuagint lemma that has no Strong's or extended number. */
+export function getLemma(lemma: string) {
+  const d = db();
+  const entries = d
+    .prepare(
+      `SELECT le.lexicon_id AS lexiconId, l.name AS lexiconName, le.entry_key AS entryKey, le.lemma, le.translit,
+              le.pronunciation, le.part_of_speech AS partOfSpeech, le.short_def AS shortDef, le.definition,
+              le.derivation, le.kjv_usage AS kjvUsage, json_extract(le.extra_json, '$.status') AS status,
+              'lemma' AS match
+       FROM lexicon_entry le JOIN lexicon l ON l.id = le.lexicon_id WHERE le.lemma = ?`,
+    )
+    .all(lemma) as LexEntry[];
+  const counts = d
+    .prepare(
+      `SELECT v.edition_id AS editionId, COUNT(*) AS n FROM morpheme m JOIN token t ON t.id = m.token_id
+       JOIN verse v ON v.id = t.verse_id WHERE m.lemma = ? GROUP BY 1`,
+    )
+    .all(lemma) as { editionId: string; n: number }[];
+  const occurrences = (
+    d
+      .prepare(
+        `SELECT cv.id AS canonId, v.edition_id AS editionId, cv.book_id AS canonBook, b.name AS bookName,
+                cv.chapter AS canonChapter, cv.verse AS canonVerse, t.surface, m.lemma, m.strongs_ext AS strongsExt
+         FROM morpheme m JOIN token t ON t.id = m.token_id JOIN verse v ON v.id = t.verse_id
+         JOIN verse_map vm ON vm.verse_id = v.id JOIN canon_verse cv ON cv.id = vm.canon_verse_id
+         JOIN book b ON b.id = cv.book_id
+         WHERE m.lemma = ? GROUP BY t.id ORDER BY b.ord, cv.chapter, cv.verse LIMIT 2000`,
+      )
+      .all(lemma) as Omit<StrongsOccurrence, "href">[]
+  ).map((o) => ({ ...o, href: verseHref(o.canonId, o.canonBook, o.canonChapter, o.canonVerse) }));
+  return { id: lemma, entries, counts, occurrences, equivalents: getEquivalents(`lemma:${lemma}`, "grk>heb", 8) };
 }
 
 // ---------------------------------------------------------------------------- sources

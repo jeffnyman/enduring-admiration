@@ -53,7 +53,11 @@ async function Chapter({
   // titles their own row (verse 0), so show it there.
   const hasTitleRow = !layout && rows[0]?.verse === 0;
   const webTitle = hasTitleRow ? rows.find((r) => r.verse === 1)?.editions.WEB?.[0]?.heading ?? null : null;
-  const qs = requested ? `?cols=${columns.join(",")}` : "";
+  const glosses = sp.gloss === "1";
+  const params_ = new URLSearchParams();
+  if (requested) params_.set("cols", columns.join(","));
+  if (glosses) params_.set("gloss", "1");
+  const qs = params_.size ? `?${params_.toString().replace(/%2C/g, ",")}` : "";
 
   const allBooks = getBooks();
   const replacedBy = new Map<string, string>();
@@ -73,10 +77,13 @@ async function Chapter({
     };
   });
 
+  const href = (cols: string[] | null, gloss: boolean) => {
+    const p = [cols?.length ? `cols=${cols.join(",")}` : "", gloss ? "gloss=1" : ""].filter(Boolean).join("&");
+    return `/read/${bookId}/${chapter}${p ? `?${p}` : ""}`;
+  };
   const toggle = (id: string) => {
     const set = columns.includes(id) ? columns.filter((c) => c !== id) : [...columns, id];
-    const ordered = ALL_COLUMNS.filter((c) => set.includes(c));
-    return ordered.length ? `/read/${bookId}/${chapter}?cols=${ordered.join(",")}` : `/read/${bookId}/${chapter}`;
+    return href(ALL_COLUMNS.filter((c) => set.includes(c)), glosses);
   };
 
   return (
@@ -120,6 +127,18 @@ async function Chapter({
             {SHORT[id]}
           </Link>
         ))}
+        <Link
+          href={href(requested ? columns : null, !glosses)}
+          className={`rounded-full border px-2.5 py-0.5 ${
+            glosses
+              ? "border-sky-700 bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-100"
+              : "border-stone-300 text-stone-500 dark:border-stone-700"
+          }`}
+          aria-pressed={glosses}
+          title="English gloss under each Hebrew and Greek word (Septuagint glosses, in italics, are dictionary glosses)"
+        >
+          Glosses
+        </Link>
         <span className="self-center text-stone-400">Click a Hebrew or Greek word for its lexicon entry.</span>
       </div>
 
@@ -162,6 +181,7 @@ async function Chapter({
                   canonVerse={r.verse}
                   preferBook={layout ? bookId : r.canonBook}
                   expect={layout ? { book: bookId, chapter, label: r.label } : undefined}
+                  glosses={glosses}
                   lang={editions[c]?.language ?? "en"}
                   dir={editions[c]?.direction ?? "ltr"}
                   title={c === "WEB" && r.verse === 0 ? webTitle : null}
