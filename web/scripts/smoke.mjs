@@ -191,6 +191,63 @@ try {
   const lemmaPage = await page.request.get(`${BASE}/lemma/${encodeURIComponent(lxxLemma)}`);
   check(lemmaPage.status() === 200 && (await lemmaPage.text()).includes("occurrence"), `lemma concordance page works (${lxxLemma})`);
 
+  console.log("Cross-references");
+  await page.goto(`${BASE}/read/GEN/1`);
+  const xbtn = page.locator('[id="GEN-1-1"] [data-xref]');
+  check((await xbtn.count()) === 1, "verse shows a cross-reference button");
+  await xbtn.click();
+  await drawer.locator("ol li a").first().waitFor({ timeout: 10000 });
+  check((await drawer.locator('ol li a[href^="/read/"]').count()) > 3, "cross-references list linked verses with text");
+  await drawer.locator("ol li a").first().click();
+  await page.waitForURL(/\/read\/.*#[A-Z0-9]{3}-\d+-\d+$/);
+  check(true, "a cross-reference opens its verse");
+
+  console.log("Keyboard");
+  await page.goto(`${BASE}/read/GEN/1`);
+  await page.locator('html[data-keys="ready"]').waitFor({ state: "attached" });
+  const currentId = () => page.locator(".verse-row.is-current").first().getAttribute("id");
+  await page.keyboard.press("j");
+  await page.keyboard.press("j");
+  check((await currentId()) === "GEN-1-2", "j moves to the next verse");
+  await page.keyboard.press("k");
+  check((await currentId()) === "GEN-1-1", "k moves back");
+  await page.keyboard.press("b");
+  check((await page.locator('[id="GEN-1-1"] button[aria-label^="Bookmark"]').getAttribute("aria-pressed")) === "true",
+    "b bookmarks the current verse");
+  await page.keyboard.press("e");
+  const textarea = page.locator("#note-text");
+  await textarea.waitFor();
+  await textarea.fill("smoke-test note");
+  await page.keyboard.press("Escape");
+  check((await page.locator('[id="GEN-1-1"]').getByText("smoke-test note").count()) === 1, "e writes a note shown under the verse");
+  await page.keyboard.press("x");
+  await drawer.locator("ol li a").first().waitFor({ timeout: 10000 });
+  check(await drawer.isVisible(), "x opens the verse's cross-references");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("?");
+  check(await page.getByRole("dialog", { name: "Keyboard shortcuts" }).isVisible(), "? lists the shortcuts");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("l");
+  await page.waitForURL(/\/read\/GEN\/2/);
+  await page.locator('[id="GEN-2-1"]').waitFor();          // chapter streams in after the URL changes
+  await page.locator('html[data-keys="ready"]').waitFor({ state: "attached" });
+  check(true, "l goes to the next chapter");
+  await page.keyboard.press("g");
+  await page.waitForURL(/gloss=1/);
+  check(true, "g toggles the gloss line");
+
+  console.log("Bookmarks and notes");
+  await page.goto(`${BASE}/read/GEN/1`);
+  const kept = await page.locator('[id="GEN-1-1"]').getByText("smoke-test note").waitFor({ timeout: 5000 })
+    .then(() => true, () => false);
+  check(kept, "notes survive a reload");
+  await page.goto(`${BASE}/bookmarks`);
+  check((await page.getByRole("link", { name: "Genesis 1:1" }).count()) === 1, "bookmarks page lists the verse");
+  check((await page.getByText("smoke-test note").count()) === 1, "bookmarks page shows the note");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Clear all" }).click();
+  check((await page.getByText("Nothing here yet").count()) === 1, "clear all removes them");
+
   console.log("API");
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
   check((await status("/api/token/abc")) === 400, "bad token id -> 400");
@@ -202,6 +259,12 @@ try {
   await mobile.goto(`${BASE}/read/JHN/1`);
   const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(overflow <= 0, `no horizontal scrolling on a phone (${overflow}px)`);
+  await mobile.locator('[id="JHN-1-1"] [lang="grc"] [data-tok]').first().click();
+  const sheet = mobile.locator('aside[role="dialog"]');
+  await sheet.locator("section").first().waitFor({ timeout: 10000 });
+  const box = await sheet.boundingBox();
+  check(!!box && box.width >= 380 && box.y > 844 * 0.2 && Math.abs(box.y + box.height - 844) < 2,
+    "on a phone the panel is a bottom sheet");
 
   check(errors.length === 0, `no browser errors${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""}`);
 } catch (e) {
