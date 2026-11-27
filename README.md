@@ -53,7 +53,19 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 **File formats** (only relevant to the data pipeline): **USFM** (Bible text markup used by eBible.org), **OSIS** and **TEI** (XML formats for scripture and other texts), **SQLite FTS5** (the full-text search index inside `bible.db`).
 
-## Run it
+## Download and run
+
+The easiest way to read is the release download, `bible-reader-<version>.zip` (about 145 MB). Unzip it and double-click `start.command` (Mac) or `start.cmd` (Windows), or run `./start.sh` (Mac/Linux). The reader opens at http://localhost:3000. It needs only [Node.js](https://nodejs.org) 22.13 or newer. There is no install step, nothing to compile, and nothing is sent over the network. The same zip runs on Mac, Windows and Linux. `README.txt` inside explains the details, `NOTICE.txt` lists every source and license, and `TEXTS.md` is included.
+
+To make the zip from a built `db/bible.db`:
+
+```bash
+scripts/package.sh        # -> dist/bible-reader-<version>.zip and .sha256; tests the packaged app first
+```
+
+It builds the Next.js standalone server (`NEXT_OUTPUT=standalone`) and adds the database, launchers (`release/`) and notices. It then checks that no native modules or build-machine paths ended up in the bundle, starts the packaged app and runs the browser smoke test against it.
+
+## Run it from source
 
 ```bash
 # 1. Build the database (first run downloads ~150 source files into data/cache/, ~2 min)
@@ -87,6 +99,7 @@ The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium
 | `pipeline/bibleingest/` | Parsers: USFM, MorphHB, Swete TEI, TAGNT, lexicons, TVTMS versification |
 | `pipeline/versification_overrides.tsv` | Documented numbering fixes TVTMS doesn't cover (each checked at build time) |
 | `web/` | Next.js reader (App Router, built-in node:sqlite, read-only) |
+| `release/` | Launchers and README for the download; `scripts/package.sh` builds it |
 
 ## Licensing
 

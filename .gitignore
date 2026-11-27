@@ -9,3 +9,4 @@ data/cache/
 db/*.db
 data/build_report.md
 data/sample_preview.html
+dist/
