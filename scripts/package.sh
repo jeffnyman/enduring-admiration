@@ -8,7 +8,7 @@
 #   start.command / start.sh / start.cmd / start.mjs   launchers
 #   app/          Next.js standalone server (no npm install needed; no native modules)
 #   db/bible.db   the database
-#   README.txt, NOTICE.txt, TEXTS.md
+#   README.txt, NOTICE.txt, TEXTS.md, LICENSE (the code; the data licenses are in NOTICE.txt)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -49,7 +49,7 @@ echo "==> Copying the database"
 cp db/bible.db "$OUT/db/bible.db"
 
 echo "==> Launchers and notices"
-cp release/start.mjs release/start.sh release/README.txt TEXTS.md "$OUT/"
+cp release/start.mjs release/start.sh release/README.txt TEXTS.md LICENSE "$OUT/"
 cp release/start.sh "$OUT/start.command"
 # Windows batch files want CRLF line endings
 sed 's/$/\r/' release/start.cmd >"$OUT/start.cmd"
@@ -74,7 +74,7 @@ for (const r of rows) {
 }
 lines.push(
   "Fonts: Noto Serif and Noto Serif Hebrew, SIL Open Font License 1.1 (bundled in app/).",
-  "Software: Next.js and React (MIT).",
+  "Software: this reader, MIT License (see LICENSE); Next.js and React, MIT License.",
 );
 console.log(lines.join("\n"));
 ' "$OUT/db/bible.db" >"$OUT/NOTICE.txt"

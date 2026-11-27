@@ -103,4 +103,6 @@ The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium
 
 ## Licensing
 
-Texts are public domain or CC BY / CC BY-SA; see the app's **Sources** page or the `source` table. Because the Swete Septuagint data is CC BY-SA 4.0, a distributed `bible.db` is CC BY-SA 4.0 with the listed attributions. Bundled fonts (Noto Serif, Noto Serif Hebrew) are OFL; SBL Hebrew / Galatia SIL are used when installed locally.
+The code (the pipeline, the reader and the scripts) is under the [MIT License](LICENSE).
+
+The data is licensed separately. Texts are public domain or CC BY / CC BY-SA; see the app's **Sources** page or the `source` table. Because the Swete Septuagint data is CC BY-SA 4.0, a distributed `bible.db` is CC BY-SA 4.0 with the listed attributions. Bundled fonts (Noto Serif, Noto Serif Hebrew) are OFL; SBL Hebrew / Galatia SIL are used when installed locally.

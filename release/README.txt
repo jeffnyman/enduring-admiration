@@ -38,9 +38,11 @@ WHAT'S IN THIS FOLDER
   db/bible.db     all the texts, words and lexicons (SQLite)
   NOTICE.txt      sources and licenses
   TEXTS.md        about the texts: which editions, and why
+  LICENSE         the software license (MIT)
 
 LICENSE
 
-  The texts are public domain or CC BY / CC BY-SA. Because the Swete Septuagint data is
-  CC BY-SA 4.0, db/bible.db is distributed under CC BY-SA 4.0 with the attributions in
-  NOTICE.txt. You are free to copy and share this download.
+  The software is under the MIT License (see LICENSE). The texts are public domain
+  or CC BY / CC BY-SA. Because the Swete Septuagint data is CC BY-SA 4.0, db/bible.db
+  is distributed under CC BY-SA 4.0 with the attributions in NOTICE.txt. You are free
+  to copy and share this download.
