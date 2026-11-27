@@ -8,7 +8,7 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 - **Side by side:** English (WEB) beside the Hebrew, the Septuagint and the Greek New Testament, aligned verse by verse; columns can be switched on and off.
 - **Word study:** click any Hebrew or Greek word for its lemma, parsing in plain English, lexicon entries (Strong's, BDB, Thayer's, LSJ), Septuagint equivalents and all occurrences. The **Glosses** switch puts an English gloss under every word.
-- **Commentaries:** the ¶ button beside a verse opens Tyndale Open Study Notes, unfoldingWord's Translation Notes (linked to the Hebrew and Greek words they discuss), the Catena Aurea (the Church Fathers on the Gospels) and Keil & Delitzsch (on the Hebrew Old Testament). Each book has an introduction page. [About the texts](TEXTS.md#the-commentaries) explains the traditions they come from.
+- **Commentaries:** the ¶ button beside a verse opens seven commentaries across about 1,800 years: the Church Fathers, the Catena Aurea, Matthew Henry, Adam Clarke, Keil & Delitzsch, Tyndale Open Study Notes, and unfoldingWord's Translation Notes (which are linked to the Hebrew and Greek words they discuss). Each book has an introduction page. [About the texts](TEXTS.md#the-commentaries) explains the traditions they come from.
 - **Cross-references:** the ↗ button beside a verse number lists related verses with their text (OpenBible.info, CC BY, ranked by votes, plus the WEB's own notes).
 - **Bookmarks and notes:** ☆ and ✎ beside a verse number. The downloaded reader saves them in a file on your computer, outside the app folder so upgrades keep them: `~/Library/Application Support/enduring-admiration/notes.json` on macOS, `%APPDATA%\enduring-admiration\notes.json` on Windows, `~/.local/share/enduring-admiration/notes.json` on Linux, or wherever `--notes FILE` (or `BIBLE_NOTES`) points. Without a notes file, for example on a hosted site, they stay in the browser. Notes made in the browser are copied into the file the first time it's available. The Bookmarks page shows where they are, and can export and import them as a file.
 - **Keyboard:** `j`/`k` next/previous verse, `h`/`l` or ←/→ previous/next chapter, `g` glosses, `b` bookmark, `e` note, `x` cross-references, `c` commentary, `?` for the list.
@@ -48,6 +48,9 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 - **Tyndale Open Study Notes.** Study-Bible notes, book introductions, theme articles and profiles from Tyndale House Publishers (2022, CC BY-SA 4.0). Modern evangelical.
 - **Translation Notes.** unfoldingWord's notes on the Hebrew and Greek for Bible translators (CC BY-SA 4.0). Each note quotes the original words it explains, and the reader links it to them.
+- **The Church Fathers.** About 21,700 excerpts from 73 Fathers (Chrysostom, Augustine, Basil and others) in Schaff's public-domain *Ante-Nicene* and *Nicene and Post-Nicene Fathers*. They come from the HistoricalChristianFaith Commentaries-Database, keeping only excerpts whose words match Schaff's text (`pipeline/curate_fathers.py`).
+- **Matthew Henry.** *Commentary on the Whole Bible* (1706–21), the classic devotional commentary (public domain, CrossWire module).
+- **Adam Clarke.** *Commentary and Critical Notes* (1810–26), a Methodist scholar's verse-by-verse commentary (public domain, CrossWire module).
 - **Catena Aurea.** Thomas Aquinas's chain of comments from the Church Fathers on the four Gospels, in the English translation made under J. H. Newman (1841–45; public domain).
 - **Keil & Delitzsch.** C. F. Keil and F. Delitzsch's 19th-century commentary on the Hebrew text of the Old Testament (public domain; transcription from Wikisource via CrossWire).
 
@@ -107,6 +110,7 @@ The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium
 | `db/schema.sql` | SQLite schema (editions, verses, Standard-numbering map, words, morphemes, lexicons, FTS5) |
 | `pipeline/build_bible.py` | Full build + verification report |
 | `pipeline/bibleingest/` | Parsers: USFM, MorphHB, Swete TEI, TAGNT, lexicons, TVTMS versification |
+| `pipeline/curate_fathers.py`, `pipeline/fathers_allowlist.tsv` | Chooses the Church Fathers excerpts (only those whose words match Schaff's translation); the build loads only the listed ones |
 | `pipeline/slim_db.py` | Makes the smaller release copy of `bible.db` (checked before use) |
 | `pipeline/versification_overrides.tsv` | Documented numbering fixes TVTMS doesn't cover (each checked at build time) |
 | `web/` | Next.js reader (App Router, built-in node:sqlite, read-only) |

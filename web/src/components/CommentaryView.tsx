@@ -42,7 +42,13 @@ function Body({ html }: { html: string }) {
 export function CommentaryEntryView({ e, commentary }: { e: CommentaryEntry; commentary: string }) {
   const long = e.body.length > LONG;
   const words = e.words;
-  const head = (
+  const head = commentary === "fathers" ? (
+    <div className="mb-1 text-xs text-stone-500">
+      <span className="font-semibold text-stone-800 dark:text-stone-200">{e.label}</span>
+      {e.title && <span className="italic"> · {e.title}</span>}
+      <span> · on {e.refLabel}</span>
+    </div>
+  ) : (
     <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-xs text-stone-500">
       <span className="font-semibold text-stone-700 dark:text-stone-300">{e.title ?? e.refLabel}</span>
       {e.title && <span>{e.refLabel}</span>}

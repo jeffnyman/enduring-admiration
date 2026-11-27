@@ -79,6 +79,7 @@ SKIPPED_SWETE = {"PssSol": "Psalms of Solomon: not canonical in any tradition co
 OLD_GREEK = {"Dan": "DAG", "Sus": "SUS", "Bel": "BEL"}
 SBLGNT_SHA = "d7f35adca9ec410e1d1499c63b4dd989d76c8d4d"
 CATENA_SHA = "aebb0f6b2b313fd3732dab9b7f28714fbe967f40"
+HCF_SHA = "1f737a48c07cdcb1c64c4dd9dbbc789c122476dc"         # must match pipeline/curate_fathers.py
 SBLGNT_BOOKS = ("Matt Mark Luke John Acts Rom 1Cor 2Cor Gal Eph Phil Col 1Thess 2Thess 1Tim 2Tim Titus Phlm "
                 "Heb Jas 1Pet 2Pet 1John 2John 3John Jude Rev").split()
 
@@ -149,6 +150,27 @@ def sources():
         attribution="C. F. Keil and F. Delitzsch, Biblical Commentary on the Old Testament (T&T Clark), public "
                     "domain; transcription from Wikisource (CC BY-SA 4.0) as packaged in the CrossWire SWORD "
                     "module KD. Its Hebrew is unpointed and has transcription errors.")
+    src["crosswire-mhc"] = dict(
+        title="Matthew Henry, Commentary on the Whole Bible (CrossWire SWORD module MHC 2.2)",
+        url="https://www.crosswire.org/ftpmirror/pub/sword/packages/rawzip/MHC.zip", file="MHC.zip", version="2.2",
+        license="Public Domain",
+        attribution="Matthew Henry, Commentary on the Whole Bible (1706–21), public domain; text prepared from "
+                    "the Christian Classics Ethereal Library (ccel.org) as packaged in the CrossWire SWORD module MHC.")
+    src["crosswire-clarke"] = dict(
+        title="Adam Clarke, Commentary and Critical Notes (CrossWire SWORD module Clarke 2.0)",
+        url="https://www.crosswire.org/ftpmirror/pub/sword/packages/rawzip/Clarke.zip", file="Clarke.zip",
+        version="2.0", license="Public Domain",
+        attribution="Adam Clarke, Commentary and Critical Notes on the Bible (1810–26), public domain; text from "
+                    "Wikisource and sacred-texts as packaged in the CrossWire SWORD module Clarke.")
+    src["hcf-commentaries"] = dict(
+        title="Church Fathers excerpts (HistoricalChristianFaith/Commentaries-Database), filtered to Schaff's ANF/NPNF",
+        url=f"https://codeload.github.com/HistoricalChristianFaith/Commentaries-Database/tar.gz/{HCF_SHA}",
+        file=f"Commentaries-Database-{HCF_SHA}.tar.gz", version=HCF_SHA,
+        license="Public Domain (dedication by the compilers; translations ed. Philip Schaff, 1885–1900)",
+        attribution="Excerpts compiled by the HistoricalChristianFaith Commentaries-Database (public-domain "
+                    "dedication), from the Ante-Nicene Fathers and Nicene and Post-Nicene Fathers, ed. Philip "
+                    "Schaff, public domain. Only excerpts whose words were matched against Schaff's text are "
+                    "included (pipeline/curate_fathers.py).")
     src["ebible-kjv"] = dict(
         title="King James Version, USFM (used only for the KJV verse counts that index the K&D module)",
         url="https://ebible.org/Scriptures/eng-kjv2006_usfm.zip", file="eng-kjv2006_usfm.zip", version=None,
@@ -678,9 +700,13 @@ def load_commentaries(con, data, report):
     to the WLC / SBLGNT words they quote."""
     from bibleingest import commentary as C
     t0, stats = time.time(), Counter()
+    kjv = C.kjv_counts(data["ebible-kjv"])
     entries = (C.tyndale(data["tyndale-osn"], stats) + C.unfoldingword(data["uw-tn"], stats)
                + C.catena(data["catena-lemtom"].decode("utf-8"), stats)
-               + C.keil_delitzsch(data["crosswire-kd"], C.kjv_counts(data["ebible-kjv"]), stats))
+               + C.keil_delitzsch(data["crosswire-kd"], kjv, stats)
+               + C.sword_commentary(data["crosswire-mhc"], kjv, "henry", stats)
+               + C.sword_commentary(data["crosswire-clarke"], kjv, "clarke", stats)
+               + C.church_fathers(data["hcf-commentaries"], fathers_allowlist(), stats))
     con.executemany("INSERT INTO commentary VALUES (:id,:source_id,:title,:short_title,:author,:written,"
                     ":tradition,:description,:sort)", [dict(c, sort=i) for i, c in enumerate(C.COMMENTARIES)])
     ids = defaultdict(list)
@@ -751,6 +777,18 @@ def load_commentaries(con, data, report):
     con.executemany("INSERT OR IGNORE INTO commentary_word VALUES (?,?)", links)
     report["commentary"] = dict(stats)
     report["t_commentary"] = time.time() - t0
+
+
+def fathers_allowlist():
+    import curate_fathers
+    if curate_fathers.HCF_SHA != HCF_SHA:
+        raise RuntimeError("HCF_SHA differs between build_bible.py and curate_fathers.py: re-run the curation")
+    rows = []
+    for line in (HERE / "fathers_allowlist.tsv").read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            father, fname, idx, h = line.split("\t")
+            rows.append((father, fname, int(idx), h))
+    return rows
 
 
 def match_quote(quote, occurrence, toks, lang):
@@ -1198,7 +1236,8 @@ def verify(con, report):
     cs = report.get("commentary", {})
     say(f"- {cs}")
     per = dict(q("SELECT commentary_id, COUNT(*) FROM commentary_entry GROUP BY 1"))
-    for cid, least in (("tyndale", 17000), ("uw", 90000), ("catena", 800), ("kd", 8500)):
+    for cid, least in (("tyndale", 17000), ("uw", 90000), ("catena", 800), ("kd", 8500), ("henry", 5000),
+                       ("clarke", 20000), ("fathers", 21000)):
         check(per.get(cid, 0) >= least, f"{cid}: {per.get(cid, 0)} entries (expected {least}+)")
     skipped = sum(v for k, v in cs.items() if "skipped" in k)
     check(skipped <= 0.005 * sum(per.values()), f"references outside Standard numbering: {skipped}")
@@ -1209,8 +1248,18 @@ def verify(con, report):
         hit = cs.get(f"uw {lang} words: exact", 0) + cs.get(f"uw {lang} words: partial", 0)
         check(tot and hit / tot >= least, f"unfoldingWord {lang} quotes linked to words: {hit}/{tot} "
               f"({100 * hit / max(tot, 1):.1f}%; exact {cs.get(f'uw {lang} words: exact', 0)})")
-    for book, ch, v, want in (("GEN", 1, 1, {"tyndale", "uw", "kd"}), ("MAT", 1, 2, {"catena", "tyndale", "uw"}),
-                              ("JON", 1, 17, {"tyndale", "uw", "kd"}), ("PSA", 23, 1, {"tyndale", "uw", "kd"})):
+    allowed = len(fathers_allowlist())
+    lost = {k: v for k, v in cs.items() if k.startswith("fathers:") and "Standard numbering" not in k}
+    outside = cs.get("fathers: reference not in Standard numbering (skipped)", 0)
+    check(per.get("fathers", 0) + outside == allowed and not lost,
+          f"every curated Church Fathers excerpt found with unchanged text ({per.get('fathers', 0)} loaded + "
+          f"{outside} outside Standard numbering = {allowed}) {lost}")
+    for book, ch, v, want in (("GEN", 1, 1, {"tyndale", "uw", "kd", "henry", "clarke"}),
+                              ("MAT", 1, 2, {"catena", "tyndale", "uw", "henry", "clarke"}),
+                              ("JHN", 1, 1, {"fathers", "catena", "henry", "clarke", "tyndale", "uw"}),
+                              ("JON", 1, 17, {"tyndale", "uw", "kd", "henry", "clarke"}),
+                              ("PSA", 23, 1, {"tyndale", "uw", "kd", "henry", "clarke", "fathers"}),
+                              ("SIR", 10, 9, {"fathers"}), ("WIS", 7, 26, {"fathers"})):
         cid = S.canon_verse_id(book, ch, v)
         got = {r[0] for r in q("""SELECT DISTINCT e.commentary_id FROM commentary_ref r JOIN commentary_entry e
                                   ON e.id = r.entry_id WHERE r.start_canon <= ? AND r.end_canon >= ?

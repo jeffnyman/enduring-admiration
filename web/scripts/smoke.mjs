@@ -218,7 +218,8 @@ try {
   const tabs = drawer.getByRole("tab");
   await tabs.first().waitFor({ timeout: 10000 });
   const tabNames = (await tabs.allInnerTexts()).join(" | ");
-  check(["Tyndale", "Language notes", "Keil"].every((t) => tabNames.includes(t)), `Genesis 1:1 has Tyndale, language notes and Keil & Delitzsch (${tabNames})`);
+  check(["Tyndale", "Language notes", "Keil", "Matthew Henry", "Adam Clarke"].every((t) => tabNames.includes(t)),
+    `Genesis 1:1 has Tyndale, language notes, Henry, Clarke and Keil & Delitzsch (${tabNames})`);
   check((await present(drawer.locator(".commentary-body p"))) > 0, "commentary text is shown");
   check((await drawer.locator(".commentary-body script, .commentary-body [onclick], .commentary-body iframe").count()) === 0,
     "commentary HTML has no scripts or handlers");
@@ -235,6 +236,12 @@ try {
   await page.locator('[id="MAT-1-2"] [data-commentary]').click();
   await drawer.getByRole("tab", { name: /Catena/ }).click();
   check((await present(drawer.locator(".commentary-body strong"))) > 0, "Matthew 1:2 has the Catena Aurea, naming its Fathers");
+  await page.goto(`${BASE}/read/JHN/1`);
+  await page.locator('[id="JHN-1-1"] [data-commentary]').click();
+  await drawer.getByRole("tab", { name: /^Fathers/ }).click();
+  check((await present(drawer.locator("[data-entry]"))) > 3, "John 1:1 has excerpts from the Church Fathers");
+  check((await drawer.getByText("John Chrysostom").count()) + (await drawer.getByText("Augustine of Hippo").count()) > 0,
+    "each excerpt names its Father");
   await page.goto(`${BASE}/read/GEN/1`);
   await page.locator('[id="GEN-1-1"] [data-tok]').first().click();
   check((await present(drawer.getByText("Language notes on this word"))) === 1, "a word's details include language notes on it");
