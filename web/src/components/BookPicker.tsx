@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 
 export type PickerBook = {
   id: string;
@@ -41,6 +41,8 @@ function setCanon(c: Canon) {
 export function BookPicker({ books, book, chapter }: { books: PickerBook[]; book: string; chapter: number }) {
   const router = useRouter();
   const canon = useSyncExternalStore(subscribe, readCanon, () => "all" as Canon);
+  // Next keeps the previous page mounted (hidden) for instant back/forward, so ids must be unique
+  const uid = useId();
 
   const visible = books.filter((b) => canon === "all" || b.canon[canon] > 0 || b.id === book);
   const current = books.find((b) => b.id === book);
@@ -48,9 +50,9 @@ export function BookPicker({ books, book, chapter }: { books: PickerBook[]; book
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      <label className="sr-only" htmlFor="book">Book</label>
+      <label className="sr-only" htmlFor={`${uid}-book`}>Book</label>
       <select
-        id="book"
+        id={`${uid}-book`}
         value={book}
         onChange={(e) => go(e.target.value, 1)}
         className="rounded border border-stone-300 bg-white px-2 py-1 dark:border-stone-700 dark:bg-stone-900"
@@ -69,9 +71,9 @@ export function BookPicker({ books, book, chapter }: { books: PickerBook[]; book
           ) : null;
         })}
       </select>
-      <label className="sr-only" htmlFor="chapter">Chapter</label>
+      <label className="sr-only" htmlFor={`${uid}-chapter`}>Chapter</label>
       <select
-        id="chapter"
+        id={`${uid}-chapter`}
         value={chapter}
         onChange={(e) => go(book, Number(e.target.value))}
         className="rounded border border-stone-300 bg-white px-2 py-1 dark:border-stone-700 dark:bg-stone-900"
@@ -82,9 +84,9 @@ export function BookPicker({ books, book, chapter }: { books: PickerBook[]; book
           </option>
         ))}
       </select>
-      <label className="sr-only" htmlFor="canon">Canon</label>
+      <label className="sr-only" htmlFor={`${uid}-canon`}>Canon</label>
       <select
-        id="canon"
+        id={`${uid}-canon`}
         value={canon}
         onChange={(e) => setCanon(e.target.value as Canon)}
         className="rounded border border-stone-300 bg-white px-2 py-1 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"

@@ -116,11 +116,11 @@ async function Chapter({
         {rows.map((r) => (
           <div
             key={r.canonId}
-            id={`v${r.verse}`}
+            id={`${bookId}-${chapter}-${r.verse}`}
             className="verse-row grid scroll-mt-20 gap-x-6 gap-y-1 border-b border-stone-100 py-3 md:grid-cols-[2.5rem_repeat(var(--cols),minmax(0,1fr))] dark:border-stone-900"
             style={{ "--cols": columns.length } as React.CSSProperties}
           >
-            <a href={`#v${r.verse}`} className="pt-1 font-sans text-xs text-stone-400 hover:text-stone-700">
+            <a href={`#${bookId}-${chapter}-${r.verse}`} className="pt-1 font-sans text-xs text-stone-400 hover:text-stone-700">
               {r.verse === 0 ? "title" : r.verse}
             </a>
             {columns.map((c) => (

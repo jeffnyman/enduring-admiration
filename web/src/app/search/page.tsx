@@ -82,7 +82,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
         {hits.map((h, i) => (
           <li key={i} className="border-b border-stone-100 pb-3 dark:border-stone-900">
             <Link
-              href={`/read/${h.canonBook}/${h.canonChapter}#v${h.canonVerse}`}
+              href={`/read/${h.canonBook}/${h.canonChapter}#${h.canonBook}-${h.canonChapter}-${h.canonVerse}`}
               className="text-sm font-semibold text-amber-800 hover:underline dark:text-amber-300"
             >
               {h.ref}
