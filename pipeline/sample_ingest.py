@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sample ingest: Genesis 1, Tobit 1, John 1 -> db/bible.db, then verify.
+"""Sample ingest: Genesis 1, Tobit 1, John 1 -> db/sample.db, then verify.
 
   Genesis 1 : WEB + WLC Hebrew (MorphHB) + LXX Greek (Swete, tagged; Brenton, text only)
   Tobit 1   : WEB + LXX Greek (Swete, tagged; Brenton, text only)
@@ -26,7 +26,7 @@ from bibleingest.fetch import fetch, now, zip_member
 from bibleingest.textnorm import norm_hebrew, script_of
 
 ROOT = Path(__file__).resolve().parents[1]
-DB = ROOT / "db" / "bible.db"
+DB = ROOT / "db" / "sample.db"          # never overwrites the full build (db/bible.db)
 SCHEMA = ROOT / "db" / "schema.sql"
 PREVIEW = ROOT / "data" / "sample_preview.html"
 
