@@ -55,7 +55,7 @@ For why these Hebrew and Greek editions were chosen, what each is good and weak 
 
 ## Download and run
 
-The easiest way to read is the release download, `bible-reader-<version>.zip` (about 145 MB). Unzip it and double-click `start.command` (Mac) or `start.cmd` (Windows), or run `./start.sh` (Mac/Linux). The reader opens at http://localhost:3000. It needs only [Node.js](https://nodejs.org) 22.16 or newer (not Node 23, whose built-in SQLite lacks full-text search). There is no install step, nothing to compile, and nothing is sent over the network. The same zip runs on Mac, Windows and Linux. `README.txt` inside explains the details, `NOTICE.txt` lists every source and license, and `TEXTS.md` is included.
+The easiest way to read is the release download, `bible-reader-<version>.zip` (about 130 MB). Unzip it and double-click `start.command` (Mac) or `start.cmd` (Windows), or run `./start.sh` (Mac/Linux). The reader opens at http://localhost:3000. It needs only [Node.js](https://nodejs.org) 22.16 or newer (not Node 23, whose built-in SQLite lacks full-text search). There is no install step, nothing to compile, and nothing is sent over the network. The same zip runs on Mac, Windows and Linux. `README.txt` inside explains the details, `NOTICE.txt` lists every source and license, and `TEXTS.md` is included.
 
 To make the zip from a built `db/bible.db`:
 
@@ -63,7 +63,7 @@ To make the zip from a built `db/bible.db`:
 scripts/package.sh        # -> dist/bible-reader-<version>.zip and .sha256; tests the packaged app first
 ```
 
-It builds the Next.js standalone server (`NEXT_OUTPUT=standalone`) and adds the database, launchers (`release/`) and notices. It then checks that no native modules or build-machine paths ended up in the bundle, starts the packaged app and runs the browser smoke test against it.
+It builds the Next.js standalone server (`NEXT_OUTPUT=standalone`) and adds launchers (`release/`), notices and a slimmed copy of the database. `pipeline/slim_db.py` leaves out the raw source tags that only the build uses and stores three lookup tables more compactly. It verifies the copy before accepting it, with SQLite and FTS5 integrity checks and identical row counts. `db/bible.db` itself stays the full build. It then checks that no native modules or build-machine paths ended up in the bundle, starts the packaged app and runs the browser smoke test against it.
 
 ## Run it from source
 
@@ -99,6 +99,7 @@ The smoke test drives Chrome (or `CHROME_PATH`, or a Playwright-managed Chromium
 | `db/schema.sql` | SQLite schema (editions, verses, Standard-numbering map, words, morphemes, lexicons, FTS5) |
 | `pipeline/build_bible.py` | Full build + verification report |
 | `pipeline/bibleingest/` | Parsers: USFM, MorphHB, Swete TEI, TAGNT, lexicons, TVTMS versification |
+| `pipeline/slim_db.py` | Makes the smaller release copy of `bible.db` (checked before use) |
 | `pipeline/versification_overrides.tsv` | Documented numbering fixes TVTMS doesn't cover (each checked at build time) |
 | `web/` | Next.js reader (App Router, built-in node:sqlite, read-only) |
 | `release/` | Launchers and README for the download; `scripts/package.sh` builds it |

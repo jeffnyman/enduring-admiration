@@ -484,7 +484,11 @@ export function lemmaMatches(q: string) {
     .prepare(
       `SELECT m.strongs, m.strongs_ext AS ext, m.lemma, v.edition_id AS editionId, COUNT(*) AS n
        FROM morpheme m JOIN token t ON t.id = m.token_id JOIN verse v ON v.id = t.verse_id
-       WHERE (t.surface_norm = @q OR m.surface_norm = @q) AND m.role != 'prefix'
+       -- the whole word's form, or a stem's own form (inside a prefixed Hebrew word). Two lookups,
+       -- not one OR, so each uses its index instead of scanning every morpheme.
+       WHERE m.id IN (SELECT m2.id FROM token t2 JOIN morpheme m2 ON m2.token_id = t2.id WHERE t2.surface_norm = @q
+                      UNION SELECT id FROM morpheme WHERE surface_norm = @q)
+         AND m.role != 'prefix'
        GROUP BY 1, 2, 3, 4 ORDER BY n DESC LIMIT 12`,
     )
     .all({ q: norm }) as { strongs: string | null; ext: string | null; lemma: string | null; editionId: string; n: number }[];

@@ -7,7 +7,7 @@
 # Uses the existing db/bible.db (build it with scripts/check.sh --full). The zip holds:
 #   start.command / start.sh / start.cmd / start.mjs   launchers
 #   app/          Next.js standalone server (no npm install needed; no native modules)
-#   db/bible.db   the database
+#   db/bible.db   the database, slimmed for the reader by pipeline/slim_db.py
 #   README.txt, NOTICE.txt, TEXTS.md, LICENSE (the code; the data licenses are in NOTICE.txt)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -45,8 +45,9 @@ if find "$OUT/app/node_modules" -name "*.node" | grep -q .; then
   find "$OUT/app/node_modules" -name "*.node"; exit 1
 fi
 
-echo "==> Copying the database"
-cp db/bible.db "$OUT/db/bible.db"
+echo "==> Making the release copy of the database (pipeline/slim_db.py)"
+PY="$ROOT/.venv/bin/python"; [[ -x "$PY" ]] || PY=python3
+"$PY" pipeline/slim_db.py db/bible.db "$OUT/db/bible.db"
 
 echo "==> Launchers and notices"
 cp release/start.mjs release/start.sh release/README.txt TEXTS.md LICENSE "$OUT/"
