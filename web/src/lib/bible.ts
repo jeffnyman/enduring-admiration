@@ -291,6 +291,8 @@ export type WordDetails = {
   gloss: string | null;
   tagStatus: string;
   variant: string;
+  /** the transcription's form when an OCR error was corrected (Swete) */
+  ocrOriginal: string | null;
   edition: Edition;
   ref: string;
   morphemes: Morpheme[];
@@ -301,11 +303,13 @@ export function getWord(tokenId: number): WordDetails | null {
   const t = d
     .prepare(
       `SELECT t.id, t.surface, t.translit, t.gloss, t.tag_status AS tagStatus, t.variant, t.morph_scheme AS scheme,
+              t.ocr_original AS ocrOriginal,
               v.edition_id AS editionId, b.name AS bookName, v.chapter, v.verse, v.part, v.source_ref AS sourceRef
        FROM token t JOIN verse v ON v.id = t.verse_id JOIN book b ON b.id = v.book_id WHERE t.id = ?`,
     )
     .get(tokenId) as
     | { id: number; surface: string; translit: string | null; gloss: string | null; tagStatus: string; variant: string;
+        ocrOriginal: string | null;
         scheme: string | null; editionId: string; bookName: string; chapter: number; verse: number; part: string;
         sourceRef: string | null }
     | undefined;
@@ -336,6 +340,7 @@ export function getWord(tokenId: number): WordDetails | null {
     gloss: t.gloss,
     tagStatus: t.tagStatus,
     variant: t.variant,
+    ocrOriginal: t.ocrOriginal,
     edition,
     ref: `${t.bookName} ${t.chapter}:${t.verse}${t.part}${t.sourceRef ? ` (${t.sourceRef})` : ""}`,
     morphemes: morphemes.map((m) => {

@@ -6,7 +6,9 @@ import { VerseCell } from "@/components/VerseCell";
 import { WordDrawer } from "@/components/WordDrawer";
 import { defaultColumns, getBook, getBooks, getChapter, getEditions, neighbours } from "@/lib/bible";
 
-const ALL_COLUMNS = ["WEB", "WLC", "LXX-SWETE", "LXX-BRENTON", "SBLGNT"];
+const ALL_COLUMNS = ["WEB", "WLC", "LXX-SWETE", "LXX-SWETE-OG", "LXX-BRENTON", "SBLGNT"];
+// the Old Greek column only exists for Daniel and its additions
+const OLD_GREEK_BOOKS = ["DAN", "DAG", "S3Y", "SUS", "BEL"];
 // Short names for a row's Standard reference when a layout renumbers it
 const STD_ABBR: Record<string, string> = {
   DAN: "Dan", S3Y: "Pr Azar", SUS: "Sus", BEL: "Bel", EST: "Esth", ESG: "Add Esth",
@@ -16,6 +18,7 @@ const SHORT: Record<string, string> = {
   WEB: "English (WEB)",
   WLC: "Hebrew (WLC)",
   "LXX-SWETE": "Septuagint (Swete)",
+  "LXX-SWETE-OG": "Old Greek Daniel",
   "LXX-BRENTON": "Septuagint (Brenton)",
   SBLGNT: "Greek NT (SBLGNT)",
 };
@@ -42,7 +45,8 @@ async function Chapter({
   const book = getBook(bookId);
   if (!book || !Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) notFound();
 
-  const requested = typeof sp.cols === "string" ? sp.cols.split(",").filter((c) => ALL_COLUMNS.includes(c)) : null;
+  const available = ALL_COLUMNS.filter((c) => c !== "LXX-SWETE-OG" || OLD_GREEK_BOOKS.includes(bookId));
+  const requested = typeof sp.cols === "string" ? sp.cols.split(",").filter((c) => available.includes(c)) : null;
   const columns = requested?.length ? requested : defaultColumns(book);
   const layout = book.layout;
   const title = layout ? book.name.replace(/\s*\(Greek\)\s*/, "") : book.name;
@@ -83,7 +87,7 @@ async function Chapter({
   };
   const toggle = (id: string) => {
     const set = columns.includes(id) ? columns.filter((c) => c !== id) : [...columns, id];
-    return href(ALL_COLUMNS.filter((c) => set.includes(c)), glosses);
+    return href(available.filter((c) => set.includes(c)), glosses);
   };
 
   return (
@@ -113,7 +117,7 @@ async function Chapter({
         </p>
       )}
       <div className="mb-4 flex flex-wrap gap-2 text-xs" aria-label="Columns">
-        {ALL_COLUMNS.map((id) => (
+        {available.map((id) => (
           <Link
             key={id}
             href={toggle(id)}

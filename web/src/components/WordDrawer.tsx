@@ -88,7 +88,7 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
   };
 
   const showing = state !== "idle" || word;
-  const machine = word?.edition.id === "LXX-SWETE" || word?.tagStatus === "inferred";
+  const machine = word?.edition.id.startsWith("LXX-SWETE") || word?.tagStatus === "inferred";
 
   return (
     <div
@@ -142,6 +142,13 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
           </div>
           {word && (
             <div className="flex-1 space-y-5 overflow-y-auto p-4">
+              {word.ocrOriginal && (
+                <p className="rounded bg-stone-100 p-2 text-xs text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+                  Corrected OCR error: the digital transcription of Swete reads{" "}
+                  <span className="scripture-grc">{word.ocrOriginal}</span>. The correction is the form found in
+                  Brenton and elsewhere in Swete.
+                </p>
+              )}
               {machine && (
                 <p className="rounded bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
                   Septuagint lemma and parsing are machine-generated (Morpheus)
