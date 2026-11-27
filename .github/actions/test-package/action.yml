@@ -17,6 +17,16 @@ runs:
       working-directory: web
       run: npm ci --no-audit --no-fund
 
+    - name: SQLite in this Node
+      shell: bash
+      run: |
+        node --disable-warning=ExperimentalWarning -e '
+          const { DatabaseSync } = require("node:sqlite");
+          const d = new DatabaseSync(":memory:");
+          const fts5 = d.prepare("SELECT 1 FROM pragma_compile_options WHERE compile_options = ?").get("ENABLE_FTS5");
+          console.log(`Node ${process.version}: SQLite ${d.prepare("SELECT sqlite_version() AS v").get().v}, FTS5 ${fts5 ? "yes" : "NO"}`);
+        '
+
     - name: Unzip, start with the launcher, run the smoke test
       shell: bash
       env:
@@ -45,8 +55,10 @@ runs:
           curl -sf "http://localhost:$PORT/about" >/dev/null && break
           sleep 1
         done
-        cat "$WORK/server.log"
         curl -sf "http://localhost:$PORT/about" >/dev/null || { echo "The packaged server did not start"; exit 1; }
 
         cd "$GITHUB_WORKSPACE/web"
-        BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs
+        status=0
+        BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs || status=$?
+        echo "--- server log"; cat "$WORK/server.log"
+        exit $status
