@@ -65,3 +65,14 @@ LXX-SWETE	ESG	1:1	EST 1:1	Swete Esther 1:1 (Addition A is the prologue)
 LXX-SWETE	ESG	10:1-3a	EST 10:1-3	Swete Esther 10:1-3 (printed 1a-3a)
 LXX-SWETE	ESG	10:1-10	10:4-13	Swete Esther Addition F
 LXX-SWETE	ESG	10:11	11:1	Swete Esther Addition F (colophon)
+
+# WEB Greek Esther prints the additions inside or after ordinary verses, in places TVTMS doesn't
+# expect (B in 3:13, D in 5:1 and F as 10:4-14 are mapped correctly by TVTMS). Evidence from verse
+# lengths and structure, checked in build_bible.py: 1:1 is 370 words (Hebrew 1:1 has 13) and holds
+# Addition A; 4:18-47 are 30 verses after Hebrew 4:17 = Addition C (30 verses); 8:12 is the plain
+# verse (20 words); 8:13 is 688 words and holds Addition E (the king's letter).
+WEB	ESG	1:1	ESG 11:2-12; ESG 12:1-6; EST 1:1	WEB Greek Esther 1:1 includes Addition A
+WEB	ESG	4:18-28	ESG 13:8-18	WEB Greek Esther 4:18-47 = Addition C
+WEB	ESG	4:29-47	ESG 14:1-19	WEB Greek Esther 4:18-47 = Addition C
+WEB	ESG	8:12	EST 8:12	WEB Greek Esther 8:12 is the plain verse
+WEB	ESG	8:13	ESG 16:1-24; EST 8:13	WEB Greek Esther 8:13 includes Addition E

@@ -312,26 +312,43 @@ def map_edition(rules: list[Rule], inv: Inventory, book: str, prefer: tuple):
 
 def load_overrides(path, mapping_by_edition, report):
     """Apply edition-specific corrections TVTMS does not cover.
-    TSV: edition, book, source, standard, reason. Source 'ch:v[part]' or a range
-    'ch:v1-v2[part]'; standard 'ch:v' or 'ch:v1-v2' (same length), or 'BOOK ch:v' for
-    a different standard book."""
+    TSV: edition, book, source, standard, reason.
+      source    'ch:v[part]' or a range 'ch:v1-v2[part]'
+      standard  'ch:v' or 'ch:v1-v2' (same length as the source range), optionally 'BOOK ch:v'.
+                A single source verse may list several targets separated by ';'
+                ('ESG 11:2-12; ESG 12:1-6; EST 1:1'): it then maps to all of them (merged)."""
     applied = []
+    target_re = re.compile(r"(?:([1-4A-Z]{3}) )?(\d+):(\d+)(?:-(\d+))?")
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip() or line.startswith("#"):
             continue
         ed, book, src, std, reason = line.split("\t")
         m = re.fullmatch(r"(\w+):(\d+)(?:-(\d+))?([a-z]?)", src)
-        n = re.fullmatch(r"(?:([1-4A-Z]{3}) )?(\d+):(\d+)(?:-(\d+))?", std)
-        if not m or not n:
+        targets = [target_re.fullmatch(t.strip()) for t in std.split(";")]
+        if not m or not all(targets):
             report.setdefault("override_misses", []).append(line)
-            continue
-        s_ch, s_lo, s_hi, part = m[1], int(m[2]), int(m[3] or m[2]), m[4]
-        t_book, t_ch, t_lo = n[1] or book, n[2], int(n[3])
-        if n[4] and int(n[4]) - t_lo != s_hi - s_lo:
-            report.setdefault("override_misses", []).append(line + "  (range lengths differ)")
             continue
         if (ed, book) not in mapping_by_edition:
             continue                              # book not part of this build
+        s_ch, s_lo, s_hi, part = m[1], int(m[2]), int(m[3] or m[2]), m[4]
+        if len(targets) > 1 or (s_lo == s_hi and targets[0][4]):
+            # one source verse -> several Standard verses
+            if s_lo != s_hi:
+                report.setdefault("override_misses", []).append(line + "  (multi-target needs one source verse)")
+                continue
+            refs = [Ref(t[1] or book, t[2], v) for t in targets for v in range(int(t[3]), int(t[4] or t[3]) + 1)]
+            key = (s_ch, s_lo, part)
+            if key not in mapping_by_edition[(ed, book)]:
+                report.setdefault("override_misses", []).append(f"{line}  (no verse {s_ch}:{s_lo}{part})")
+                continue
+            mapping_by_edition[(ed, book)][key] = [(r, "merged", "override: " + reason, None) for r in refs]
+            applied.extend((ed, book, f"{s_ch}:{s_lo}{part}", f"{r.book} {r.ch}:{r.v}") for r in refs)
+            continue
+        t = targets[0]
+        t_book, t_ch, t_lo = t[1] or book, t[2], int(t[3])
+        if t[4] and int(t[4]) - t_lo != s_hi - s_lo:
+            report.setdefault("override_misses", []).append(line + "  (range lengths differ)")
+            continue
         for i, v in enumerate(range(s_lo, s_hi + 1)):
             key = (s_ch, v, part)
             if key not in mapping_by_edition[(ed, book)]:
