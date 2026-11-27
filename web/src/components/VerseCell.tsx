@@ -48,9 +48,13 @@ function TokenSpan({ t }: { t: Token }) {
   );
 }
 
-function nativeLabel(v: EditionVerse, canonBook: string, canonChapter: number, canonVerse: number) {
+type Expect = { book: string; chapter: number; label: string };
+
+function nativeLabel(v: EditionVerse, canonBook: string, canonChapter: number, canonVerse: number, expect?: Expect) {
   if (v.sourceRef) return v.sourceRef;
   if (v.bookId === canonBook && v.chapter === canonChapter && v.verse === canonVerse && !v.part) return null;
+  // in a layout, an edition that numbers the verse like the layout needs no label
+  if (expect && v.bookId === expect.book && v.chapter === expect.chapter && `${v.verse}${v.part}` === expect.label) return null;
   return `${v.bookId === canonBook ? "" : v.bookId + " "}${v.chapter}:${v.verse}${v.part}`;
 }
 
@@ -64,6 +68,8 @@ export function VerseCell({
   dir,
   title,
   hideHeading = false,
+  preferBook,
+  expect,
 }: {
   editionId: string;
   verses: EditionVerse[] | undefined;
@@ -75,6 +81,9 @@ export function VerseCell({
   /** heading to show in place of text (WEB Psalm title on the Standard "title" row) */
   title?: string | null;
   hideHeading?: boolean;
+  /** English: show the WEB verse from this book first (Greek Daniel/Esther in their layouts) */
+  preferBook?: string;
+  expect?: Expect;
 }) {
   const cls = lang === "hbo" ? "scripture-he" : lang === "grc" ? "scripture-grc" : "scripture-en";
   if (!verses?.length) {
@@ -85,16 +94,18 @@ export function VerseCell({
     );
   }
 
-  // English: the WEB verse from the canonical book first (e.g. Hebrew-text Daniel), others after
-  const ordered =
-    editionId === "WEB"
-      ? [...verses].sort((a, b) => Number(b.bookId === canonBook) - Number(a.bookId === canonBook))
-      : verses;
+  // English: the WEB verse from the preferred book first (the canonical book, or in a layout the
+  // Greek-text translation), others after
+  // The WEB translates Daniel and Esther twice (from the Hebrew and from the Greek); show the one
+  // that matches this view, or every candidate if neither matches
+  const first = preferBook ?? canonBook;
+  const preferred = verses.filter((v) => v.bookId === first);
+  const ordered = editionId === "WEB" && preferred.length ? preferred : verses;
 
   return (
     <div lang={lang} dir={dir} className={cls}>
       {ordered.map((v, i) => {
-        const label = nativeLabel(v, canonBook, canonChapter, canonVerse);
+        const label = nativeLabel(v, canonBook, canonChapter, canonVerse, expect);
         const loose = v.relation === "partial" || v.relation === "merged";
         const secondary = editionId === "WEB" && i > 0;
         return (
@@ -114,7 +125,11 @@ export function VerseCell({
             {editionId === "WEB" && v.heading && !hideHeading && !v.continued && (
               <div className="mb-0.5 text-[0.9em] italic text-stone-600 dark:text-stone-400">{v.heading}</div>
             )}
-            {secondary && <span className="me-1 font-sans text-[0.7rem]">({v.bookId === "DAG" ? "Greek Daniel" : v.bookId === "ESG" ? "Greek Esther" : v.bookId})</span>}
+            {secondary && (
+              <span className="me-1 font-sans text-[0.7rem]">
+                ({{ DAG: "Greek Daniel", ESG: "Greek Esther", DAN: "Hebrew-text Daniel", EST: "Hebrew-text Esther" }[v.bookId] ?? v.bookId})
+              </span>
+            )}
             {v.continued ? (
               <span className="font-sans text-xs italic text-stone-400">(text shown with the verse above)</span>
             ) : v.tokens.length ? (

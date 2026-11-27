@@ -12,7 +12,11 @@ export type Book = {
   canon_catholic: number;
   canon_orthodox: number;
   chapters: number;
+  /** set for books read through a layout (Greek Daniel, Greek Esther) */
+  layout: Layout | null;
 };
+
+export type Layout = { bookId: string; replaces: string[]; description: string };
 
 export type Edition = {
   id: string;
@@ -53,18 +57,43 @@ export type EditionVerse = {
   continued: boolean;
 };
 
-export type CanonRow = { canonId: number; verse: number; editions: Record<string, EditionVerse[]> };
+export type CanonRow = {
+  canonId: number;
+  /** Standard reference of this row */
+  canonBook: string;
+  canonChapter: number;
+  verse: number;
+  /** label shown for the row: the Standard verse, or the layout's own ('24', 'A 1') */
+  label: string;
+  /** element id / URL fragment for the row, unique per page: GEN-1-1, ESG-1-A1 */
+  anchor: string;
+  editions: Record<string, EditionVerse[]>;
+};
 
 // ---------------------------------------------------------------------------- books
+export function getLayouts(): Layout[] {
+  return (
+    db().prepare("SELECT book_id AS bookId, replaces, description FROM layout").all() as {
+      bookId: string; replaces: string; description: string;
+    }[]
+  ).map((l) => ({ ...l, replaces: l.replaces.split(",") }));
+}
+
+/** Books that have Standard verses, plus books read through a layout (chapters from the layout). */
 export function getBooks(): Book[] {
-  return db()
+  const layouts = new Map(getLayouts().map((l) => [l.bookId, l]));
+  const rows = db()
     .prepare(
       `SELECT b.id, b.name, b.section, b.ord, b.canon_protestant, b.canon_catholic, b.canon_orthodox,
-              MAX(cv.chapter) AS chapters
-       FROM book b JOIN canon_verse cv ON cv.book_id = b.id
-       GROUP BY b.id ORDER BY b.ord`,
+              COALESCE((SELECT MAX(chapter) FROM layout_verse lv WHERE lv.book_id = b.id),
+                       (SELECT MAX(chapter) FROM canon_verse cv WHERE cv.book_id = b.id)) AS chapters
+       FROM book b
+       WHERE EXISTS (SELECT 1 FROM canon_verse cv WHERE cv.book_id = b.id)
+          OR EXISTS (SELECT 1 FROM layout l WHERE l.book_id = b.id)
+       ORDER BY b.ord`,
     )
-    .all() as Book[];
+    .all() as Omit<Book, "layout">[];
+  return rows.map((b) => ({ ...b, layout: layouts.get(b.id) ?? null }));
 }
 
 export function getBook(id: string): Book | undefined {
@@ -75,8 +104,10 @@ export function getEditions(): Edition[] {
   return db().prepare("SELECT id, name, language, direction, kind, notes FROM edition").all() as Edition[];
 }
 
-/** Original-language columns shown by default for a section. */
-export function defaultColumns(section: Book["section"]): string[] {
+/** Columns shown by default for a book. */
+export function defaultColumns(book: Pick<Book, "section" | "layout">): string[] {
+  const section = book.section;
+  if (book.layout) return ["WEB", "WLC", "LXX-SWETE"];   // Greek Daniel / Esther: Hebrew is there too
   if (section === "NT") return ["WEB", "SBLGNT"];
   if (section === "DC") return ["WEB", "LXX-SWETE"];
   return ["WEB", "WLC", "LXX-SWETE"];
@@ -94,11 +125,27 @@ export function neighbours(bookId: string, chapter: number) {
 }
 
 // ---------------------------------------------------------------------------- chapter
+const anchorOf = (book: string, chapter: number, label: string) => `${book}-${chapter}-${label.replace(/\s+/g, "")}`;
+
 export function getChapter(bookId: string, chapter: number, editions: string[]): CanonRow[] {
   const d = db();
-  const canon = d
-    .prepare("SELECT id, verse FROM canon_verse WHERE book_id = ? AND chapter = ? ORDER BY verse")
-    .all(bookId, chapter) as { id: number; verse: number }[];
+  const isLayout = !!d.prepare("SELECT 1 FROM layout WHERE book_id = ?").get(bookId);
+  const canon = (
+    isLayout
+      ? d
+          .prepare(
+            `SELECT cv.id, cv.book_id AS canonBook, cv.chapter AS canonChapter, cv.verse, lv.label
+             FROM layout_verse lv JOIN canon_verse cv ON cv.id = lv.canon_verse_id
+             WHERE lv.book_id = ? AND lv.chapter = ? ORDER BY lv.seq`,
+          )
+          .all(bookId, chapter)
+      : d
+          .prepare(
+            `SELECT id, book_id AS canonBook, chapter AS canonChapter, verse, CAST(verse AS TEXT) AS label
+             FROM canon_verse WHERE book_id = ? AND chapter = ? ORDER BY verse`,
+          )
+          .all(bookId, chapter)
+  ) as { id: number; canonBook: string; canonChapter: number; verse: number; label: string }[];
   if (!canon.length) return [];
   const ids = canon.map((c) => c.id);
   const ph = (n: number) => Array(n).fill("?").join(",");
@@ -138,7 +185,6 @@ export function getChapter(bookId: string, chapter: number, editions: string[]):
   }
 
   const byCanon = new Map<number, Record<string, EditionVerse[]>>();
-  const seen = new Set<number>();
   for (const r of rows) {
     const rec = byCanon.get(r.canonId) ?? {};
     const ev: EditionVerse = {
@@ -148,13 +194,46 @@ export function getChapter(bookId: string, chapter: number, editions: string[]):
       rule: r.rule, note: r.note,
       tokens: tokens.get(r.verseId) ?? [],
       notes: notes.get(r.verseId) ?? [],
-      continued: seen.has(r.verseId),
+      continued: false,
     };
-    seen.add(r.verseId);
     (rec[r.editionId] ??= []).push(ev);
     byCanon.set(r.canonId, rec);
   }
-  return canon.map((c) => ({ canonId: c.id, verse: c.verse, editions: byCanon.get(c.id) ?? {} }));
+  // A source verse mapped to several rows is shown once, at the first row in reading order
+  // (layout order can differ from Standard order: Esther's Addition A comes before 1:1)
+  const seen = new Set<number>();
+  for (const c of canon) {
+    for (const list of Object.values(byCanon.get(c.id) ?? {})) {
+      for (const ev of list) {
+        ev.continued = seen.has(ev.verseId);
+        seen.add(ev.verseId);
+      }
+    }
+  }
+  return canon.map((c) => ({
+    canonId: c.id,
+    canonBook: c.canonBook,
+    canonChapter: c.canonChapter,
+    verse: c.verse,
+    label: c.label,
+    anchor: anchorOf(bookId, chapter, c.label),
+    editions: byCanon.get(c.id) ?? {},
+  }));
+}
+
+/**
+ * Reader URL for a Standard verse. Verses of a book that only exists as a layout (Greek
+ * Esther's additions, ESG) live on the layout's pages; everything else on its Standard page.
+ */
+export function verseHref(canonId: number, book: string, chapter: number, verse: number): string {
+  const lv = db()
+    .prepare(
+      `SELECT lv.book_id AS book, lv.chapter, lv.label FROM layout_verse lv
+       WHERE lv.canon_verse_id = ? AND lv.book_id = ?`,
+    )
+    .get(canonId, book) as { book: string; chapter: number; label: string } | undefined;
+  if (lv) return `/read/${lv.book}/${lv.chapter}#${anchorOf(lv.book, lv.chapter, lv.label)}`;
+  return `/read/${book}/${chapter}#${anchorOf(book, chapter, String(verse))}`;
 }
 
 // ---------------------------------------------------------------------------- word details
@@ -247,6 +326,7 @@ export function getWord(tokenId: number): WordDetails | null {
 
 // ---------------------------------------------------------------------------- search
 export type SearchHit = {
+  href: string;
   editionId: string;
   bookId: string;
   bookName: string;
@@ -299,15 +379,16 @@ export function search(q: string, edition: string, limit = 200): { total: number
     text: string; snip: string;
   }[];
   const canonStmt = d.prepare(
-    `SELECT cv.book_id AS book, cv.chapter, cv.verse FROM verse_map m JOIN canon_verse cv ON cv.id = m.canon_verse_id
+    `SELECT cv.id, cv.book_id AS book, cv.chapter, cv.verse FROM verse_map m JOIN canon_verse cv ON cv.id = m.canon_verse_id
      WHERE m.verse_id = ? ORDER BY cv.id LIMIT 1`,
   );
   const hits = rows.map((r) => {
-    const c = canonStmt.get(r.id) as { book: string; chapter: number; verse: number };
+    const c = canonStmt.get(r.id) as { id: number; book: string; chapter: number; verse: number };
     // English is indexed as-is, so the FTS snippet can be shown; original-language text is
     // indexed without diacritics, so show the verse itself.
     const snippet = r.editionId === "WEB" ? r.snip : r.text;
     return {
+      href: verseHref(c.id, c.book, c.chapter, c.verse),
       editionId: r.editionId, bookId: r.bookId, bookName: r.bookName,
       canonBook: c.book, canonChapter: c.chapter, canonVerse: c.verse,
       ref: `${r.bookName} ${r.chapter}:${r.verse}${r.part}`, snippet,
@@ -325,6 +406,8 @@ export function normalizeStrongs(s: string): { base: string; ext: string } | nul
 }
 
 export type StrongsOccurrence = {
+  href: string;
+  canonId: number;
   editionId: string;
   canonBook: string;
   bookName: string;
@@ -361,15 +444,18 @@ export function getStrongs(id: string) {
     .all(hasExt ? s.ext : s.base) as { editionId: string; n: number }[];
   const occurrences = d
     .prepare(
-      `SELECT v.edition_id AS editionId, cv.book_id AS canonBook, b.name AS bookName, cv.chapter AS canonChapter,
+      `SELECT cv.id AS canonId, v.edition_id AS editionId, cv.book_id AS canonBook, b.name AS bookName, cv.chapter AS canonChapter,
               cv.verse AS canonVerse, t.surface, m.lemma, m.strongs_ext AS strongsExt
        FROM morpheme m JOIN token t ON t.id = m.token_id JOIN verse v ON v.id = t.verse_id
        JOIN verse_map vm ON vm.verse_id = v.id JOIN canon_verse cv ON cv.id = vm.canon_verse_id
        JOIN book b ON b.id = cv.book_id
        WHERE ${where} GROUP BY t.id ORDER BY b.ord, cv.chapter, cv.verse, v.edition_id LIMIT 2000`,
     )
-    .all(hasExt ? s.ext : s.base) as StrongsOccurrence[];
-  return { id: hasExt ? s.ext : s.base, entries, counts, occurrences };
+    .all(hasExt ? s.ext : s.base) as Omit<StrongsOccurrence, "href">[];
+  const withHref = occurrences.map((o) => ({
+    ...o, href: verseHref(o.canonId, o.canonBook, o.canonChapter, o.canonVerse),
+  }));
+  return { id: hasExt ? s.ext : s.base, entries, counts, occurrences: withHref };
 }
 
 // ---------------------------------------------------------------------------- sources

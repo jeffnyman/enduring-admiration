@@ -72,7 +72,7 @@ async function Strongs({ params }: { params: PageProps<"/strongs/[id]">["params"
               {occ.map((o, i) => (
                 <Link
                   key={i}
-                  href={`/read/${o.canonBook}/${o.canonChapter}#${o.canonBook}-${o.canonChapter}-${o.canonVerse}`}
+                  href={o.href}
                   className="hover:underline"
                   title={`${ED[o.editionId] ?? o.editionId}: ${o.surface}`}
                 >

@@ -8,7 +8,12 @@ export type PickerBook = {
   name: string;
   section: "OT" | "DC" | "NT";
   chapters: number;
+  ord: number;
   canon: { protestant: number; catholic: number; orthodox: number };
+  /** this Standard book is read inside a layout book in Catholic/Orthodox order (DAN -> DAG) */
+  replacedBy?: string;
+  /** for layout books: the name and list position they take in Catholic/Orthodox order */
+  layout?: { name: string; section: PickerBook["section"]; ord: number };
 };
 
 type Canon = "all" | "protestant" | "catholic" | "orthodox";
@@ -44,7 +49,14 @@ export function BookPicker({ books, book, chapter }: { books: PickerBook[]; book
   // Next keeps the previous page mounted (hidden) for instant back/forward, so ids must be unique
   const uid = useId();
 
-  const visible = books.filter((b) => canon === "all" || b.canon[canon] > 0 || b.id === book);
+  // Catholic and Orthodox Bibles read Daniel and Esther with the Greek additions in place: show
+  // the layout books where Daniel and Esther stand, and hide the pieces they absorb.
+  const greekOrder = canon === "catholic" || canon === "orthodox";
+  const visible = books
+    .filter((b) => canon === "all" || b.canon[canon] > 0 || b.id === book)
+    .filter((b) => !greekOrder || !b.replacedBy || b.id === book)
+    .map((b) => (greekOrder && b.layout ? { ...b, name: b.layout.name, section: b.layout.section, ord: b.layout.ord } : b))
+    .sort((a, b) => a.ord - b.ord);
   const current = books.find((b) => b.id === book);
   const go = (b: string, c: number) => router.push(`/read/${b}/${c}${window.location.search}`);
 
