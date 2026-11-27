@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-english: "Noto Serif Variable", Georgia, "Times New Roman", serif;
+  /* Pointed Hebrew with cantillation: SBL Hebrew / Ezra SIL if installed, else bundled Noto */
+  --font-hebrew: "SBL Hebrew", "Ezra SIL", "Noto Serif Hebrew Variable", "Times New Roman", serif;
+  /* Polytonic Greek: Galatia SIL / SBL BibLit / Gentium if installed, else bundled Noto Serif */
+  --font-greek: "Galatia SIL", "SBL BibLit", "Gentium Plus", "Noto Serif Variable", serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.scripture-en,
+.scripture-he,
+.scripture-grc {
+  overflow-wrap: anywhere;
+}
+
+.scripture-en {
+  font-family: var(--font-english);
+  line-height: 1.7;
+}
+
+.scripture-he {
+  font-family: var(--font-hebrew);
+  font-size: 1.45rem;
+  line-height: 2.1;
+  /* keep combining marks attached; never synthesize */
+  font-synthesis: none;
+}
+
+.scripture-grc {
+  font-family: var(--font-greek);
+  font-size: 1.12rem;
+  line-height: 1.85;
+  font-synthesis: none;
+}
+
+.tok {
+  cursor: pointer;
+  border-radius: 0.2rem;
+  transition: background-color 120ms;
+}
+
+.tok:hover,
+.tok:focus-visible {
+  background-color: color-mix(in oklab, var(--color-amber-300) 45%, transparent);
+  outline: none;
+}
+
+.tok[aria-pressed="true"] {
+  background-color: color-mix(in oklab, var(--color-amber-400) 60%, transparent);
+}
+
+.tok-untagged {
+  cursor: default;
+}
+
+.tok-untagged:hover {
+  background-color: transparent;
+}
+
+.wj {
+  color: var(--color-red-800);
+}
+
+@media (prefers-color-scheme: dark) {
+  .wj {
+    color: var(--color-red-300);
+  }
+}
+
+.verse-row:target {
+  background-color: color-mix(in oklab, var(--color-amber-200) 35%, transparent);
+}

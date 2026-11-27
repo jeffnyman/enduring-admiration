@@ -1,0 +1,67 @@
+# Edition-specific numbering that TVTMS does not cover. Each row is verified by
+# pipeline/sample_ingest.py against a parallel edition's text before it is trusted.
+# edition	book	source ch:v[part]	standard ch:v	reason
+# Brenton part letters are stored by position (TVTMS letters a..z without gaps); Brenton's own
+# labels (which skip j and v) are kept in verse.source_ref.
+
+# Swete prints Greek Esther's additions as separate numbered runs: Addition A as a 'prologue'
+# chapter (stored as chapter 0), B-E as lettered runs inside their host chapters. Standard
+# (TVTMS/NRSV, Vulgate-style) numbering per the TVTMS notes: A1-11=11:2-12, A12-17=12:1-6,
+# B1-7=13:1-7, C1-11=13:8-18, C12-30=14:1-19, D1-16=15:1-16, E1-24=16:1-24.
+# Each row is checked against Brenton's text at the same Standard verse.
+LXX-SWETE	ESG	0:1-11	11:2-12	Swete Esther Addition A (prologue)
+LXX-SWETE	ESG	0:12-17	12:1-6	Swete Esther Addition A (prologue)
+LXX-SWETE	ESG	3:1-7a	13:1-7	Swete Esther Addition B
+LXX-SWETE	ESG	4:1-11a	13:8-18	Swete Esther Addition C
+LXX-SWETE	ESG	4:12-30a	14:1-19	Swete Esther Addition C
+LXX-SWETE	ESG	4:1-16b	15:1-16	Swete Esther Addition D
+LXX-SWETE	ESG	8:1-24a	16:1-24	Swete Esther Addition E
+
+# WEB prints Susanna and Bel as Greek Daniel 13 (64 verses) and 14 (42 verses). TVTMS only has a
+# Latin-tradition rule for Dan 14 (where 13:65 holds Bel 1:1), whose test also matches the WEB.
+# WEB 14:1 is Bel 1:1; checked structurally (42 verses) in build_bible.py.
+WEB	DAG	14:1-42	BEL 1:1-42	WEB Daniel 14 = Bel and the Dragon 1-42
+
+# Brenton numbers Tob 4:8-18 as 4:7a-7l (stored by position as 4:7a-k).
+LXX-BRENTON	TOB	4:7a	4:8	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7b	4:9	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7c	4:10	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7d	4:11	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7e	4:12	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7f	4:13	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7g	4:14	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7h	4:15	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7i	4:16	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7j	4:17	Brenton Tob 4:8-18 printed as 4:7a-l
+LXX-BRENTON	TOB	4:7k	4:18	Brenton Tob 4:8-18 printed as 4:7a-l
+
+# Brenton Esther 1: base 1:1 = Addition A1; parts (printed 1b-1s, stored a-q) = A2-A17, then Esther 1:1.
+LXX-BRENTON	ESG	1:1	11:2	Brenton Esther Addition A1
+LXX-BRENTON	ESG	1:1a	11:3	Brenton Esther Addition A2
+LXX-BRENTON	ESG	1:1b	11:4	Brenton Esther Addition A3
+LXX-BRENTON	ESG	1:1c	11:5	Brenton Esther Addition A4
+LXX-BRENTON	ESG	1:1d	11:6	Brenton Esther Addition A5
+LXX-BRENTON	ESG	1:1e	11:7	Brenton Esther Addition A6
+LXX-BRENTON	ESG	1:1f	11:8	Brenton Esther Addition A7
+LXX-BRENTON	ESG	1:1g	11:9	Brenton Esther Addition A8
+LXX-BRENTON	ESG	1:1h	11:10	Brenton Esther Addition A9
+LXX-BRENTON	ESG	1:1i	11:11	Brenton Esther Addition A10
+LXX-BRENTON	ESG	1:1j	11:12	Brenton Esther Addition A11
+LXX-BRENTON	ESG	1:1k	12:1	Brenton Esther Addition A12
+LXX-BRENTON	ESG	1:1l	12:2	Brenton Esther Addition A13
+LXX-BRENTON	ESG	1:1m	12:3	Brenton Esther Addition A14
+LXX-BRENTON	ESG	1:1n	12:4	Brenton Esther Addition A15
+LXX-BRENTON	ESG	1:1o	12:5	Brenton Esther Addition A16
+LXX-BRENTON	ESG	1:1p	12:6	Brenton Esther Addition A17
+LXX-BRENTON	ESG	1:1q	EST 1:1	Brenton Esther 1:1 (printed 1:1s)
+
+# (Swete's Letter of Jeremiah is aligned to Brenton's by text in build_bible.py: Swete prints the
+# title as a heading and divides 1:43-50 differently, so no fixed offset is right.)
+# TVTMS merges Swete's (undivided) Esther 1:1 with Addition A; in Swete Addition A is the prologue.
+LXX-SWETE	ESG	1:1	EST 1:1	Swete Esther 1:1 (Addition A is the prologue)
+
+# Swete Esther 10: the Hebrew text 10:1-3 is printed as 10:1a-3a, Addition F as plain 10:1-11
+# (Standard F1-10 = 10:4-13, F11 = 11:1).
+LXX-SWETE	ESG	10:1-3a	EST 10:1-3	Swete Esther 10:1-3 (printed 1a-3a)
+LXX-SWETE	ESG	10:1-10	10:4-13	Swete Esther Addition F
+LXX-SWETE	ESG	10:11	11:1	Swete Esther Addition F (colophon)
