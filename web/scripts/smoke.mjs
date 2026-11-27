@@ -131,6 +131,14 @@ try {
   check(!/[\u05D0-\u05EA]/.test(await heb("DAG-3-24")) && /[\u0370-\u03FF\u1F00-\u1FFF]/.test(await grc("DAG-3-24")),
     "Daniel 3:24 (Greek numbering) is Greek-only");
   check(/[\u05D0-\u05EA]/.test(await heb("DAG-3-91")), "Daniel 3:91 lines up with the Hebrew (Standard 3:24)");
+  const ogChip = page.getByRole("link", { name: "Old Greek Daniel" });
+  check((await ogChip.count()) === 1, "Daniel offers the Old Greek column");
+  await ogChip.click();
+  await page.waitForURL(/cols=.*LXX-SWETE-OG/);
+  await page.locator('[id="DAG-3-1"]').waitFor();
+  check((await page.locator('[id="DAG-3-1"] [lang="grc"]').count()) >= 2, "Old Greek shows beside Theodotion");
+  await page.goto(`${BASE}/read/GEN/1`);
+  check((await page.getByRole("link", { name: "Old Greek Daniel" }).count()) === 0, "other books don't offer it");
   await page.goto(`${BASE}/read/DAG/13`);
   check((await page.locator(".verse-row").count()) === 64, "Daniel 13 is Susanna (64 verses)");
 
