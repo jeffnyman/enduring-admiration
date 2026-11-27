@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -37,7 +37,7 @@ jobs:
       # The source files are pinned by commit in the pipeline, so they can be cached between runs
       # (this also spares the upstream hosts).
       - name: Cache source downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/cache
           key: sources-${{ hashFiles('pipeline/**/*.py', 'pipeline/*.txt', 'pipeline/*.tsv') }}
@@ -59,7 +59,7 @@ jobs:
       - name: Package the release zip
         run: scripts/package.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-zip
           path: dist/bible-reader-*.zip
@@ -77,15 +77,15 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: ["22.13.0", "24"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-zip
           path: ${{ runner.temp }}/zip

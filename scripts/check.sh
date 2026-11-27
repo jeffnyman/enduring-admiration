@@ -38,7 +38,7 @@ fi
 [[ -f db/bible.db ]] || { echo "db/bible.db missing: run scripts/check.sh --full"; exit 1; }
 
 step "Web: typecheck, lint, production build"
-(cd web && run typecheck npx tsc --noEmit && echo "typecheck ok")
+(cd web && run typecheck npm run typecheck && echo "typecheck ok")
 (cd web && run lint npm run lint && echo "lint ok")
 (cd web && run build npx next build && echo "build ok")
 
