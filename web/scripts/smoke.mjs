@@ -144,6 +144,45 @@ try {
   check(at("ESG-3-13") >= 0 && at("ESG-3-B1") === at("ESG-3-13") + 1 && at("ESG-3-14") === at("ESG-3-B7") + 1,
     "Addition B sits between Esther 3:13 and 3:14");
 
+  console.log("Word study");
+  await page.goto(`${BASE}/read/GEN/1`);
+  await page.getByRole("link", { name: "Glosses" }).click();
+  await page.waitForURL(/gloss=1/);
+  await page.locator('[id="GEN-1-1"] ruby').first().waitFor();
+  check((await page.locator('[id="GEN-1-1"] [lang="hbo"] ruby rt').count()) > 3, "gloss line under Hebrew words");
+  check((await page.locator('[id="GEN-1-1"] [lang="grc"] ruby rt.gl-lex').count()) > 3, "Septuagint glosses marked as dictionary glosses");
+  // every glossed word stays on one line (no mid-word breaks)
+  const split = await page.locator('[id="GEN-1-2"] ruby').evaluateAll((rs) => rs.filter((r) => r.getClientRects().length > 1).length);
+  check(split === 0, `glossed words never break across lines (${split} split)`);
+  await page.getByRole("link", { name: "Next chapter" }).click();
+  await page.waitForURL(/\/read\/GEN\/2\?gloss=1/);
+  check(page.url().includes("gloss=1"), "gloss setting survives chapter navigation");
+  await page.goto(`${BASE}/read/JHN/1?gloss=1`);
+  await page.locator('[id="JHN-1-1"] ruby').first().waitFor();
+  check((await page.locator('[id="JHN-1-1"] [lang="grc"] ruby rt:not(.gl-lex)').count()) > 3, "in-context glosses under NT Greek");
+
+  await page.goto(`${BASE}/read/GEN/1`);
+  const firstHeb = page.locator('[id="GEN-1-1"] [lang="hbo"] [data-tok]').first();
+  const prefixed = await firstHeb.innerText();
+  await page.locator('[id="GEN-1-1"] [lang="hbo"] [data-tok]').nth(2).click();
+  await drawer.locator("section").first().waitFor({ timeout: 10000 });
+  check((await drawer.getByText("In the Septuagint usually").count()) > 0, "Hebrew word shows its Septuagint equivalents");
+  check((await drawer.locator('a[href^="/strongs/G"]').count()) > 0, "equivalents link to Greek concordance pages");
+  await page.keyboard.press("Escape");
+  await page.locator('[id="GEN-1-1"] [lang="grc"] [data-tok]').nth(3).click();
+  await drawer.locator("section").first().waitFor({ timeout: 10000 });
+  const lxxLemma = (await drawer.locator("section span.scripture-grc").first().innerText()).trim();
+  check((await drawer.getByText("Usually renders (Hebrew)").count()) > 0, "Greek word shows its Hebrew equivalents");
+  await page.keyboard.press("Escape");
+
+  await page.goto(`${BASE}/search?q=${encodeURIComponent(prefixed)}`);
+  check((await page.locator('section[aria-label="Dictionary words"] a[href^="/strongs/H"]').count()) > 0,
+    "searching a prefixed Hebrew word finds its dictionary word");
+  await page.goto(`${BASE}/strongs/H0430`);
+  check((await page.getByText("In the Septuagint usually").count()) > 0, "concordance page lists Septuagint equivalents");
+  const lemmaPage = await page.request.get(`${BASE}/lemma/${encodeURIComponent(lxxLemma)}`);
+  check(lemmaPage.status() === 200 && (await lemmaPage.text()).includes("occurrence"), `lemma concordance page works (${lxxLemma})`);
+
   console.log("API");
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
   check((await status("/api/token/abc")) === 400, "bad token id -> 400");
