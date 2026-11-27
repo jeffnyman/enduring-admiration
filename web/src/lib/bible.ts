@@ -69,6 +69,8 @@ export type CanonRow = {
   label: string;
   /** element id / URL fragment for the row, unique per page: GEN-1-1, ESG-1-A1 */
   anchor: string;
+  /** number of cross-references from this verse */
+  xrefs: number;
   editions: Record<string, EditionVerse[]>;
 };
 
@@ -212,8 +214,16 @@ export function getChapter(bookId: string, chapter: number, editions: string[]):
       }
     }
   }
+  const xref = new Map(
+    (
+      d
+        .prepare(`SELECT from_canon AS id, COUNT(*) AS n FROM cross_ref WHERE from_canon IN (${ph(ids.length)}) GROUP BY 1`)
+        .all(...ids) as { id: number; n: number }[]
+    ).map((r) => [r.id, r.n]),
+  );
   return canon.map((c) => ({
     canonId: c.id,
+    xrefs: xref.get(c.id) ?? 0,
     canonBook: c.canonBook,
     canonChapter: c.canonChapter,
     verse: c.verse,
@@ -351,6 +361,58 @@ export function getWord(tokenId: number): WordDetails | null {
         key,
         href: key ? keyHref(key) : null,
         equivalents: key ? getEquivalents(key, isGreek ? "grk>heb" : "heb>grk", 4) : [],
+      };
+    }),
+  };
+}
+
+// ---------------------------------------------------------------------------- cross-references
+export type CrossRef = { href: string; label: string; text: string; votes: number | null; source: string };
+
+/** Readable reference for a Standard verse (or range), e.g. "Romans 1:19-20". */
+function refLabel(startId: number, endId: number): string {
+  const d = db();
+  const a = d.prepare(
+    "SELECT b.name, cv.chapter, cv.verse FROM canon_verse cv JOIN book b ON b.id = cv.book_id WHERE cv.id = ?",
+  );
+  const s = a.get(startId) as { name: string; chapter: number; verse: number };
+  if (startId === endId) return `${s.name} ${s.chapter}:${s.verse}`;
+  const e = a.get(endId) as { name: string; chapter: number; verse: number };
+  return e.chapter === s.chapter
+    ? `${s.name} ${s.chapter}:${s.verse}-${e.verse}`
+    : `${s.name} ${s.chapter}:${s.verse}-${e.chapter}:${e.verse}`;
+}
+
+export function getCrossRefs(canonId: number, limit = 60): { label: string; total: number; refs: CrossRef[] } {
+  const d = db();
+  const total = (d.prepare("SELECT COUNT(*) AS n FROM cross_ref WHERE from_canon = ?").get(canonId) as { n: number }).n;
+  // the WEB's own notes first, then OpenBible by votes
+  const rows = d
+    .prepare(
+      `SELECT to_start AS a, to_end AS b, votes, source FROM cross_ref WHERE from_canon = ?
+       ORDER BY source = 'web' DESC, votes DESC, to_start LIMIT ?`,
+    )
+    .all(canonId, limit) as { a: number; b: number; votes: number | null; source: string }[];
+  const loc = d.prepare("SELECT book_id AS book, chapter, verse FROM canon_verse WHERE id = ?");
+  // English text of the range (first 3 verses), preferring the WEB verse from the canonical book
+  const text = d.prepare(
+    `SELECT v.text FROM verse_map m JOIN verse v ON v.id = m.verse_id JOIN canon_verse cv ON cv.id = m.canon_verse_id
+     WHERE m.canon_verse_id BETWEEN ? AND ? AND v.edition_id = 'WEB'
+     GROUP BY m.canon_verse_id ORDER BY m.canon_verse_id, v.book_id = cv.book_id DESC LIMIT 3`,
+  );
+  const self = loc.get(canonId) as { book: string; chapter: number; verse: number } | undefined;
+  return {
+    label: refLabel(canonId, canonId),
+    total,
+    refs: rows.map((r) => {
+      const at = loc.get(r.a) as { book: string; chapter: number; verse: number };
+      const parts = (text.all(r.a, r.b) as { text: string }[]).map((t) => t.text);
+      return {
+        href: verseHref(r.a, at.book, at.chapter, at.verse),
+        label: refLabel(r.a, r.b),
+        text: parts.join(" ") + (r.b - r.a > 2 && self ? " …" : ""),
+        votes: r.votes,
+        source: r.source,
       };
     }),
   };

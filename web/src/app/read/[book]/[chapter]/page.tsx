@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BookPicker, type PickerBook } from "@/components/BookPicker";
 import { VerseCell } from "@/components/VerseCell";
-import { WordDrawer } from "@/components/WordDrawer";
+import { ReaderKeys } from "@/components/ReaderKeys";
+import { StudyPanel } from "@/components/StudyPanel";
+import { VerseNote, VerseTools } from "@/components/VerseTools";
 import { defaultColumns, getBook, getBooks, getChapter, getEditions, neighbours } from "@/lib/bible";
 
 const ALL_COLUMNS = ["WEB", "WLC", "LXX-SWETE", "LXX-SWETE-OG", "LXX-BRENTON", "SBLGNT"];
@@ -144,9 +146,16 @@ async function Chapter({
           Glosses
         </Link>
         <span className="self-center text-stone-400">Click a Hebrew or Greek word for its lexicon entry.</span>
+        <span className="self-center">
+          <ReaderKeys
+            prevHref={prev ? `/read/${prev.book}/${prev.chapter}${qs}` : undefined}
+            nextHref={next ? `/read/${next.book}/${next.chapter}${qs}` : undefined}
+            glossHref={href(requested ? columns : null, !glosses)}
+          />
+        </span>
       </div>
 
-      <WordDrawer>
+      <StudyPanel>
         <div
           className="hidden gap-6 border-b border-stone-300 pb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 md:grid md:grid-cols-[2.5rem_repeat(var(--cols),minmax(0,1fr))] dark:border-stone-700"
           style={{ "--cols": columns.length } as React.CSSProperties}
@@ -162,9 +171,11 @@ async function Chapter({
           <div
             key={r.canonId}
             id={r.anchor}
+            tabIndex={-1}
             className="verse-row grid scroll-mt-20 gap-x-6 gap-y-1 border-b border-stone-100 py-3 md:grid-cols-[2.5rem_repeat(var(--cols),minmax(0,1fr))] dark:border-stone-900"
             style={{ "--cols": columns.length } as React.CSSProperties}
           >
+            <div>
             <a href={`#${r.anchor}`} className="pt-1 font-sans text-xs text-stone-400 hover:text-stone-700">
               {!layout && r.verse === 0 ? "title" : r.label}
               {layout &&
@@ -174,6 +185,13 @@ async function Chapter({
                 </span>
               )}
             </a>
+            <VerseTools
+              canonId={r.canonId}
+              refLabel={`${title} ${chapter}:${!layout && r.verse === 0 ? "title" : r.label}`}
+              href={`/read/${bookId}/${chapter}#${r.anchor}`}
+              xrefs={r.xrefs}
+            />
+            </div>
             {columns.map((c) => (
               <div key={c}>
                 <div className="mb-0.5 font-sans text-[0.65rem] uppercase text-stone-400 md:hidden">{SHORT[c]}</div>
@@ -193,9 +211,10 @@ async function Chapter({
                 />
               </div>
             ))}
+            <VerseNote canonId={r.canonId} />
           </div>
         ))}
-      </WordDrawer>
+      </StudyPanel>
 
       <div className="mt-6 flex justify-between text-sm">
         {prev ? <Link href={`/read/${prev.book}/${prev.chapter}${qs}`} className="hover:underline">← Previous</Link> : <span />}

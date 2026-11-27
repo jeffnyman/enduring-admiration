@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LexEntry, WordDetails } from "@/lib/bible";
+import { setNote, useAnnotations } from "@/lib/annotations";
+import type { CrossRef, LexEntry, WordDetails } from "@/lib/bible";
 
 const LEX_NOTE: Record<string, string> = {
   bdb: "Brown-Driver-Briggs",
@@ -48,8 +49,41 @@ function Entry({ e }: { e: LexEntry }) {
   );
 }
 
-export function WordDrawer({ children }: { children: React.ReactNode }) {
+type XrefData = { label: string; total: number; refs: CrossRef[] };
+type NoteTarget = { id: string; ref: string; href: string };
+
+function NoteEditor({ target }: { target: NoteTarget }) {
+  const note = useAnnotations()[target.id]?.note ?? "";
+  return (
+    <div className="space-y-2">
+      <label htmlFor="note-text" className="text-xs text-stone-500">
+        Saved in this browser as you type. Export from Bookmarks to keep a copy.
+      </label>
+      <textarea
+        id="note-text"
+        autoFocus
+        value={note}
+        onChange={(e) => setNote(target, e.target.value)}
+        rows={8}
+        className="w-full rounded border border-stone-300 bg-white p-2 font-sans text-sm dark:border-stone-700 dark:bg-stone-950"
+      />
+      {note && (
+        <button onClick={() => setNote(target, "")} className="text-xs text-red-700 underline dark:text-red-400">
+          Delete note
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Side panel for the reader (a bottom sheet on phones). One delegated listener opens it for
+ * a word ([data-tok]), a verse's cross-references ([data-xref]) or a verse note ([data-note]).
+ */
+export function StudyPanel({ children }: { children: React.ReactNode }) {
   const [word, setWord] = useState<WordDetails | null>(null);
+  const [xref, setXref] = useState<XrefData | null>(null);
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const selected = useRef<HTMLElement | null>(null);
 
@@ -58,18 +92,29 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
     selected.current?.focus();
     selected.current = null;
     setWord(null);
+    setXref(null);
+    setNoteTarget(null);
     setState("idle");
   }, []);
 
   const open = useCallback(async (el: HTMLElement) => {
-    selected.current?.setAttribute("aria-pressed", "false");
+    if (selected.current?.dataset.tok) selected.current.setAttribute("aria-pressed", "false");
     selected.current = el;
-    el.setAttribute("aria-pressed", "true");
+    setWord(null);
+    setXref(null);
+    setNoteTarget(null);
+    if (el.dataset.note) {
+      setNoteTarget({ id: el.dataset.note, ref: el.dataset.ref ?? "", href: el.dataset.href ?? "" });
+      setState("idle");
+      return;
+    }
+    if (el.dataset.tok) el.setAttribute("aria-pressed", "true");
     setState("loading");
     try {
-      const res = await fetch(`/api/token/${el.dataset.tok}`);
+      const res = await fetch(el.dataset.tok ? `/api/token/${el.dataset.tok}` : `/api/xrefs/${el.dataset.xref}`);
       if (!res.ok) throw new Error(String(res.status));
-      setWord((await res.json()) as WordDetails);
+      if (el.dataset.tok) setWord((await res.json()) as WordDetails);
+      else setXref((await res.json()) as XrefData);
       setState("idle");
     } catch {
       setState("error");
@@ -83,11 +128,12 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
   }, [close]);
 
   const pick = (e: React.SyntheticEvent) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tok]");
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tok],[data-xref],[data-note]");
     if (el) void open(el);
   };
 
-  const showing = state !== "idle" || word;
+  const showing = state !== "idle" || word || xref || note;
+  const title = word ? "Word details" : xref ? "Cross-references" : note ? "Note" : "Details";
   const machine = word?.edition.id.startsWith("LXX-SWETE") || word?.tagStatus === "inferred";
 
   return (
@@ -106,12 +152,28 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
       {showing && (
         <aside
           role="dialog"
-          aria-label="Word details"
-          className="fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col border-l border-stone-200 bg-white shadow-xl dark:border-stone-800 dark:bg-stone-900"
+          aria-label={title}
+          className="fixed inset-x-0 bottom-0 z-30 flex max-h-[75vh] flex-col rounded-t-2xl border-t border-stone-200 bg-white shadow-2xl md:inset-x-auto md:inset-y-0 md:right-0 md:max-h-none md:w-full md:max-w-md md:rounded-none md:border-l md:border-t-0 md:shadow-xl dark:border-stone-800 dark:bg-stone-900"
           onClick={(e) => e.stopPropagation()}
         >
+          <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-stone-300 md:hidden dark:bg-stone-700" aria-hidden />
           <div className="flex items-start justify-between border-b border-stone-200 p-4 dark:border-stone-800">
             <div>
+              {xref && (
+                <>
+                  <div className="text-lg font-semibold">Cross-references</div>
+                  <div className="text-xs text-stone-500">
+                    {xref.label} · {xref.total.toLocaleString()} references
+                    {xref.total > xref.refs.length ? `, top ${xref.refs.length} shown` : ""}
+                  </div>
+                </>
+              )}
+              {note && (
+                <>
+                  <div className="text-lg font-semibold">Note</div>
+                  <div className="text-xs text-stone-500">{note.ref}</div>
+                </>
+              )}
               {word && (
                 <>
                   <div
@@ -140,6 +202,29 @@ export function WordDrawer({ children }: { children: React.ReactNode }) {
               ✕
             </button>
           </div>
+          {xref && (
+            <ol className="flex-1 space-y-3 overflow-y-auto p-4">
+              {xref.refs.map((r, i) => (
+                <li key={i} className="text-sm">
+                  <Link href={r.href} className="font-semibold text-amber-800 hover:underline dark:text-amber-300">
+                    {r.label}
+                  </Link>
+                  <span className="ms-2 text-[0.65rem] text-stone-400">
+                    {r.source === "web" ? "WEB note" : `${r.votes} votes`}
+                  </span>
+                  <p className="scripture-en text-[0.95rem] text-stone-700 dark:text-stone-300">{r.text}</p>
+                </li>
+              ))}
+              <li className="pt-2 text-[0.65rem] text-stone-400">
+                Cross-references from OpenBible.info (CC BY), ranked by votes, and the WEB&apos;s own notes.
+              </li>
+            </ol>
+          )}
+          {note && (
+            <div className="flex-1 overflow-y-auto p-4">
+              <NoteEditor target={note} />
+            </div>
+          )}
           {word && (
             <div className="flex-1 space-y-5 overflow-y-auto p-4">
               {word.ocrOriginal && (

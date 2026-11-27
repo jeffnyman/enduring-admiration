@@ -74,6 +74,7 @@ body {
   }
 }
 
+.verse-row.is-current,
 .verse-row:target {
   background-color: color-mix(in oklab, var(--color-amber-200) 35%, transparent);
 }
@@ -107,4 +108,8 @@ ruby.gl rt.gl-lex {
 
 .scripture-grc.with-gloss {
   line-height: 2.6;
+}
+
+.verse-row:focus {
+  outline: none;
 }

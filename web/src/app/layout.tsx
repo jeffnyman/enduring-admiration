@@ -21,6 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </Link>
             <Link href="/read/GEN/1" className="hover:underline">Read</Link>
             <Link href="/search" className="hover:underline">Search</Link>
+            <Link href="/bookmarks" className="hover:underline">Bookmarks</Link>
             <Link href="/about" className="hover:underline">Sources</Link>
             <form action="/search" className="w-full sm:ml-auto sm:w-auto">
               <label htmlFor="q" className="sr-only">Search</label>
