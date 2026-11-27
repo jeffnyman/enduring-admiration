@@ -300,6 +300,31 @@ try {
     await other.goto(`${BASE}/bookmarks`);
     check((await present(other.getByText("smoke-test note"))) === 1, "another browser profile sees the same notes");
     await fresh.close();
+    // Edits made while the notes are still loading must not be lost (a slow machine hit this):
+    // a bookmark during the first load makes the reader merge this browser's copy into the file,
+    // and an edit made while that merge is on its way must survive its (older) answer.
+    const slow = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+    const early = await slow.newPage();
+    await early.goto(`${BASE}/bookmarks`);
+    await early.locator('[data-notes-store="file"]').waitFor({ timeout: 10000 });
+    await slow.route("**/api/annotations", async (route) => {
+      const r = route.request();
+      if (r.method() === "GET") await new Promise((res) => setTimeout(res, 1000));
+      if (r.method() === "POST" && (r.postData() ?? "").includes('"merge"')) await new Promise((res) => setTimeout(res, 2500));
+      await route.continue();
+    });
+    await early.goto(`${BASE}/read/GEN/1`);
+    await early.locator('html[data-keys="ready"]').waitFor({ state: "attached" });
+    await early.locator('[id="GEN-1-5"] button[aria-label^="Bookmark"]').click(); // while the file loads
+    await early.waitForTimeout(1600);
+    await early.locator('[id="GEN-1-6"] button[aria-label^="Bookmark"]').click(); // while the merge is on its way
+    await early.waitForTimeout(4000);
+    const afterLoad = Object.values((await notesApi()).items ?? {});
+    check(["Genesis 1:5", "Genesis 1:6"].every((ref) => afterLoad.some((a) => a.ref === ref && a.bookmarked)),
+      "bookmarks made while the notes are still loading are saved");
+    check((await early.locator('[id="GEN-1-6"] button[aria-pressed="true"]').count()) === 1,
+      "and still show as bookmarked once loading has finished");
+    await slow.close();
     const post = (headers, body = "{}") => page.request.post(`${BASE}/api/annotations`, { headers, data: body });
     check((await post({ "content-type": "application/json", origin: "http://evil.example" })).status() === 403,
       "notes API refuses another site's request");

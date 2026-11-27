@@ -43,6 +43,9 @@ let status: NotesStatus = { mode: "loading" };
 let started = false;
 const listeners = new Set<() => void>();
 const pending = new Map<string, ReturnType<typeof setTimeout>>();
+// verses edited while a load from the notes file is in flight: its answer may predate them
+const editedDuringLoad = new Set<string>();
+let loading = false;
 
 const emit = () => listeners.forEach((l) => l());
 
@@ -90,8 +93,20 @@ function failed(e: unknown) {
   }
 }
 
-/** Load from the server's notes file, if there is one. */
+/** Load from the server's notes file, if there is one. Edits made while it loads win over its
+ *  answer and are then saved, so a quick bookmark right after the page opens isn't lost. */
 async function load() {
+  loading = true;
+  editedDuringLoad.clear();
+  try {
+    await loadOnce();
+  } finally {
+    loading = false;
+    editedDuringLoad.clear();
+  }
+}
+
+async function loadOnce() {
   let data: { enabled?: boolean; path?: string; items?: AnnotationMap; error?: string };
   try {
     data = await (await fetch(API, { cache: "no-store" })).json();
@@ -117,10 +132,19 @@ async function load() {
       return;
     }
   }
-  if (pending.size) return; // a local edit is on its way; don't overwrite it with older data
+  // keep what was edited meanwhile (and anything still waiting to be saved) over the file's answer
+  const local = new Set([...editedDuringLoad, ...pending.keys()]);
+  if (local.size) {
+    next = { ...next };
+    for (const id of local) {
+      if (items[id]) next[id] = items[id];
+      else delete next[id];
+    }
+  }
   writeMirror(next, true);
   setItems(next);
   setStatus({ mode: "file", path });
+  for (const id of editedDuringLoad) if (!pending.has(id)) save(id);
 }
 
 function start() {
@@ -184,6 +208,7 @@ function update(t: Target, change: Partial<Annotation>) {
   else next[id] = a;
   writeMirror(next, status.mode === "file");
   setItems(next);
+  if (loading) editedDuringLoad.add(id);
   if (status.mode === "file") save(id);
 }
 
