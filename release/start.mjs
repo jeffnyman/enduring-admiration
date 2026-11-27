@@ -3,11 +3,17 @@
 //   node start.mjs                 http://localhost:3000, opens the browser
 //   node start.mjs --port 8080     another port
 //   node start.mjs --no-open       don't open the browser
+//   node start.mjs --notes FILE    keep bookmarks and notes in FILE
+//
+// Bookmarks and notes are saved in a per-user folder (outside this folder, so they survive
+// upgrades): ~/Library/Application Support/enduring-admiration on macOS, %APPDATA%\enduring-admiration
+// on Windows, $XDG_DATA_HOME (or ~/.local/share)/enduring-admiration on Linux.
 //
 // The server listens on this computer only (127.0.0.1). Stop it with Ctrl+C.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,6 +46,16 @@ const port = option("--port", process.env.PORT ?? "3000");
 const host = "127.0.0.1";
 const url = `http://localhost:${port}`;
 
+function defaultNotes() {
+  const home = os.homedir();
+  const dir =
+    process.platform === "darwin" ? path.join(home, "Library", "Application Support")
+    : process.platform === "win32" ? (process.env.APPDATA ?? path.join(home, "AppData", "Roaming"))
+    : (process.env.XDG_DATA_HOME ?? path.join(home, ".local", "share"));
+  return path.join(dir, "enduring-admiration", "notes.json");
+}
+const notes = path.resolve(option("--notes", process.env.BIBLE_NOTES ?? defaultNotes()));
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const server = path.join(here, "app", "server.js");
 const dbPath = path.join(here, "db", "bible.db");
@@ -52,7 +68,7 @@ for (const [file, what] of [[server, "app/server.js"], [dbPath, "db/bible.db"]])
 
 const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", server], {
   cwd: path.join(here, "app"),
-  env: { ...process.env, PORT: port, HOSTNAME: host, BIBLE_DB: dbPath, NODE_ENV: "production" },
+  env: { ...process.env, PORT: port, HOSTNAME: host, BIBLE_DB: dbPath, BIBLE_NOTES: notes, NODE_ENV: "production" },
   stdio: ["ignore", "ignore", "inherit"],
 });
 child.on("exit", (code) => process.exit(code ?? 0));
@@ -74,6 +90,7 @@ const openBrowser = () => {
 for (let i = 0; i < 120; i++) {
   if (await up()) {
     console.log(`The Bible reader is running at ${url}`);
+    console.log(`Bookmarks and notes are saved in ${notes}`);
     console.log("Keep this window open while you read. Press Ctrl+C to stop.");
     if (!flag("--no-open")) openBrowser();
     break;

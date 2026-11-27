@@ -25,12 +25,23 @@ START IT
 
   Another port:          ./start.sh --port 8080      (Windows: start.cmd --port 8080)
   Don't open a browser:  ./start.sh --no-open
+  Another notes file:    ./start.sh --notes /path/to/notes.json
 
 YOUR BOOKMARKS AND NOTES
 
-  They are saved in your web browser, for the address http://localhost:3000. They stay
-  when you upgrade to a newer download, as long as you use the same browser and port.
-  The Bookmarks page can export them to a file and import them again.
+  They are saved in a file on your computer, outside this folder, so they stay when
+  you upgrade to a newer download and any browser you use sees the same ones:
+
+    Mac:      ~/Library/Application Support/enduring-admiration/notes.json
+    Windows:  %APPDATA%\enduring-admiration\notes.json
+    Linux:    ~/.local/share/enduring-admiration/notes.json
+
+  The previous version is kept beside it as notes.json.bak. To use another file:
+  ./start.sh --notes /path/to/notes.json   (Windows: start.cmd --notes C:\path\notes.json)
+
+  Notes you made with version 0.1.0 or 0.1.1 (saved in the browser) are copied into the
+  file the first time you open the reader in that browser. The Bookmarks page can also
+  export them to a file and import them again.
 
 WHAT'S IN THIS FOLDER
 

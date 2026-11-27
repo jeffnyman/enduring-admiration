@@ -82,14 +82,15 @@ console.log(lines.join("\n"));
 if [[ $TEST == 1 ]]; then
   echo "==> Testing the packaged app"
   PORT=${PACKAGE_PORT:-3124}
-  (cd "$OUT" && node start.mjs --port "$PORT" --no-open >"$ROOT/dist/server.log" 2>&1) &
+  rm -f "$ROOT/dist/test-notes.json" "$ROOT/dist/test-notes.json.bak"
+  (cd "$OUT" && node start.mjs --port "$PORT" --no-open --notes "$ROOT/dist/test-notes.json" >"$ROOT/dist/server.log" 2>&1) &
   SERVER=$!
   trap 'pkill -P $SERVER 2>/dev/null; kill $SERVER 2>/dev/null || true' EXIT
   for _ in $(seq 1 80); do
     curl -sf "http://localhost:$PORT/about" >/dev/null && break
     sleep 0.5
   done
-  (cd web && BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs) | tail -3
+  (cd web && BASE_URL="http://localhost:$PORT" EXPECT_NOTES_FILE=1 node scripts/smoke.mjs) | tail -3
 fi
 
 echo "==> Zipping"

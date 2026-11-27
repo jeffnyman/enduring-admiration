@@ -47,9 +47,9 @@ runs:
 
         cd "$DIR"
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          MSYS_NO_PATHCONV=1 cmd.exe /c start.cmd --port "$PORT" --no-open >"$WORK/server.log" 2>&1 &
+          MSYS_NO_PATHCONV=1 cmd.exe /c start.cmd --port "$PORT" --no-open --notes "$WORK/notes.json" >"$WORK/server.log" 2>&1 &
         else
-          ./start.sh --port "$PORT" --no-open >"$WORK/server.log" 2>&1 &
+          ./start.sh --port "$PORT" --no-open --notes "$WORK/notes.json" >"$WORK/server.log" 2>&1 &
         fi
         for _ in $(seq 1 120); do
           curl -sf "http://localhost:$PORT/about" >/dev/null && break
@@ -59,6 +59,6 @@ runs:
 
         cd "$GITHUB_WORKSPACE/web"
         status=0
-        BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs || status=$?
+        BASE_URL="http://localhost:$PORT" EXPECT_NOTES_FILE=1 node scripts/smoke.mjs || status=$?
         echo "--- server log"; cat "$WORK/server.log"
         exit $status

@@ -9,12 +9,14 @@ import {
   setNote,
   toggleBookmark,
   useAnnotations,
+  useNotesStatus,
 } from "@/lib/annotations";
 
 type Filter = "all" | "bookmarks" | "notes";
 
 export function BookmarkList() {
   const items = useAnnotations();
+  const store = useNotesStatus();
   const [filter, setFilter] = useState<Filter>("all");
   const [message, setMessage] = useState("");
   const file = useRef<HTMLInputElement>(null);
@@ -35,7 +37,7 @@ export function BookmarkList() {
 
   const upload = async (f: File) => {
     try {
-      setMessage(`Imported ${importAnnotations(await f.text())} verses.`);
+      setMessage(`Imported ${await importAnnotations(await f.text())} verses.`);
     } catch (e) {
       setMessage(`Could not import: ${(e as Error).message}`);
     }
@@ -58,7 +60,10 @@ export function BookmarkList() {
           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
         {Object.keys(items).length > 0 && (
           <button
-            onClick={() => window.confirm("Delete all bookmarks and notes in this browser?") && clearAnnotations()}
+            onClick={() =>
+              window.confirm(store.mode === "file" ? "Delete all bookmarks and notes?" : "Delete all bookmarks and notes in this browser?") &&
+              clearAnnotations().catch((e: Error) => setMessage(`Could not clear: ${e.message}`))
+            }
             className={`${btn} text-red-700 dark:text-red-400`}
           >
             Clear all
@@ -66,6 +71,11 @@ export function BookmarkList() {
         )}
       </div>
       {message && <p className="mb-3 text-sm text-stone-600" role="status">{message}</p>}
+      {store.mode === "file" && store.error && (
+        <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200" role="alert">
+          {store.error}
+        </p>
+      )}
       {!rows.length && (
         <p className="text-stone-500">
           Nothing here yet. Use ☆ (bookmark) and ✎ (note) beside a verse number, or the keys b and e.
@@ -99,8 +109,16 @@ export function BookmarkList() {
           </li>
         ))}
       </ul>
-      <p className="mt-6 text-xs text-stone-500">
-        Bookmarks and notes are stored only in this browser. Export them to keep a copy or move them to another device.
+      <p className="mt-6 text-xs text-stone-500" data-notes-store={store.mode}>
+        {store.mode === "file" ? (
+          <>
+            Bookmarks and notes are saved on this computer in <code className="break-all">{store.path}</code> (the previous
+            version is kept beside it as a .bak file). Any browser on this computer sees them. Export them to keep a copy or
+            move them to another device.
+          </>
+        ) : store.mode === "browser" ? (
+          "Bookmarks and notes are stored only in this browser. Export them to keep a copy or move them to another device."
+        ) : null}
       </p>
     </div>
   );

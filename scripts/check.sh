@@ -43,7 +43,7 @@ step "Web: typecheck, lint, production build"
 (cd web && run build npx next build && echo "build ok")
 
 step "Web: browser smoke test (port $PORT)"
-(cd web && BIBLE_DB="$ROOT/db/bible.db" npx next start -p "$PORT" >"$LOGS/server.log" 2>&1) &
+(cd web && BIBLE_DB="$ROOT/db/bible.db" BIBLE_NOTES="$LOGS/notes.json" npx next start -p "$PORT" >"$LOGS/server.log" 2>&1) &
 SERVER=$!
 trap 'pkill -P $SERVER 2>/dev/null; kill $SERVER 2>/dev/null || true' EXIT
 for _ in $(seq 1 60); do
@@ -51,6 +51,6 @@ for _ in $(seq 1 60); do
   sleep 0.5
 done
 curl -sf "http://localhost:$PORT/about" >/dev/null || { echo "server did not start"; tail -20 "$LOGS/server.log"; exit 1; }
-(cd web && BASE_URL="http://localhost:$PORT" node scripts/smoke.mjs)
+(cd web && BASE_URL="http://localhost:$PORT" EXPECT_NOTES_FILE=1 node scripts/smoke.mjs)
 
 printf '\nAll checks passed.\n'

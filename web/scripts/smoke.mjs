@@ -254,9 +254,32 @@ try {
   await page.goto(`${BASE}/bookmarks`);
   check((await present(page.getByRole("link", { name: "Genesis 1:1" }))) === 1, "bookmarks page lists the verse");
   check((await present(page.getByText("smoke-test note"))) === 1, "bookmarks page shows the note");
+  const notesApi = async () => (await page.request.get(`${BASE}/api/annotations`)).json();
+  if (process.env.EXPECT_NOTES_FILE) {
+    check((await present(page.locator('[data-notes-store="file"]'))) === 1, "bookmarks page says notes are saved in a file");
+    const saved = await notesApi();
+    check(saved.enabled && Object.values(saved.items ?? {}).some((a) => a.ref === "Genesis 1:1" && a.bookmarked && a.note === "smoke-test note"),
+      "the notes file holds the bookmark and note");
+    // a new browser profile has empty localStorage: what it shows can only come from the file
+    const fresh = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+    const other = await fresh.newPage();
+    await other.goto(`${BASE}/bookmarks`);
+    check((await present(other.getByText("smoke-test note"))) === 1, "another browser profile sees the same notes");
+    await fresh.close();
+    const post = (headers, body = "{}") => page.request.post(`${BASE}/api/annotations`, { headers, data: body });
+    check((await post({ "content-type": "application/json", origin: "http://evil.example" })).status() === 403,
+      "notes API refuses another site's request");
+    check((await post({ "content-type": "text/plain" })).status() === 415, "notes API refuses a non-JSON write");
+    check((await post({ "content-type": "application/json", host: "evil.example" })).status() === 403,
+      "notes API refuses a non-local Host (DNS rebinding)");
+  }
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Clear all" }).click();
   check((await present(page.getByText("Nothing here yet"))) === 1, "clear all removes them");
+  if (process.env.EXPECT_NOTES_FILE) {
+    const cleared = await notesApi();
+    check(cleared.enabled && Object.keys(cleared.items ?? { x: 1 }).length === 0, "clear all empties the notes file");
+  }
 
   console.log("API");
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
