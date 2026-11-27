@@ -113,6 +113,37 @@ try {
   await page.waitForURL(/\/strongs\/H7225/);
   check((await page.locator('section a[href^="/read/"]').count()) > 0, "Strong's number search lists occurrences");
 
+  console.log("Greek Daniel and Esther (Catholic/Orthodox order)");
+  await page.goto(`${BASE}/read/GEN/1`);
+  await page.getByRole("combobox", { name: "Canon" }).selectOption("catholic");
+  const bookOptions = await page.getByRole("combobox", { name: "Book" }).locator("option").evaluateAll((os) => os.map((o) => o.value));
+  check(bookOptions.includes("DAG") && bookOptions.includes("ESG"), "Catholic list offers Daniel and Esther with the additions");
+  check(!["DAN", "S3Y", "SUS", "BEL", "EST"].some((b) => bookOptions.includes(b)), "the pieces they absorb are not listed separately");
+  check(bookOptions.indexOf("DAG") < bookOptions.indexOf("HOS") && bookOptions.indexOf("ESG") < bookOptions.indexOf("JOB"),
+    "Daniel and Esther sit in their Old Testament places");
+  await page.getByRole("combobox", { name: "Canon" }).selectOption("all");
+
+  await page.goto(`${BASE}/read/DAG/3`);
+  const dag = await page.locator(".verse-row").evaluateAll((rs) => rs.map((r) => r.id));
+  check(dag.length >= 97, `Greek Daniel 3 includes the Prayer of Azariah (${dag.length} verses)`);
+  const heb = (id) => page.locator(`[id="${id}"] [lang="hbo"]`).innerText().catch(() => "");
+  const grc = (id) => page.locator(`[id="${id}"] [lang="grc"]`).first().innerText().catch(() => "");
+  check(!/[\u05D0-\u05EA]/.test(await heb("DAG-3-24")) && /[\u0370-\u03FF\u1F00-\u1FFF]/.test(await grc("DAG-3-24")),
+    "Daniel 3:24 (Greek numbering) is Greek-only");
+  check(/[\u05D0-\u05EA]/.test(await heb("DAG-3-91")), "Daniel 3:91 lines up with the Hebrew (Standard 3:24)");
+  await page.goto(`${BASE}/read/DAG/13`);
+  check((await page.locator(".verse-row").count()) === 64, "Daniel 13 is Susanna (64 verses)");
+
+  await page.goto(`${BASE}/read/ESG/1`);
+  check((await page.locator(".verse-row").first().getAttribute("id")) === "ESG-1-A1", "Esther opens with Addition A");
+  check(!(await page.locator('[id="ESG-1-A1"] [lang="en"]').innerText()).includes("shown with the verse above"),
+    "a verse spanning several rows is shown at the first row in reading order");
+  await page.goto(`${BASE}/read/ESG/3`);
+  const esg = await page.locator(".verse-row").evaluateAll((rs) => rs.map((r) => r.id));
+  const at = (id) => esg.indexOf(id);
+  check(at("ESG-3-13") >= 0 && at("ESG-3-B1") === at("ESG-3-13") + 1 && at("ESG-3-14") === at("ESG-3-B7") + 1,
+    "Addition B sits between Esther 3:13 and 3:14");
+
   console.log("API");
   const status = async (p) => (await page.request.get(`${BASE}${p}`)).status();
   check((await status("/api/token/abc")) === 400, "bad token id -> 400");
